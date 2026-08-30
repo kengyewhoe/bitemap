@@ -23,7 +23,7 @@
             <button id="bad" type="button" class="flex-1 py-3 rounded-lg font-title-md text-sm text-sheet-on-surface-muted">Bad</button>
           </div>
           <div class="flex items-center space-x-3 mb-10 bg-secondary-container/20 p-3 rounded-lg">
-            <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">verified</span>
+            <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">thumbs_up_down</span>
             <p id="stats" class="text-sm text-secondary"></p>
           </div>
           <p id="msg" class="hidden text-sm text-error mb-3"></p>
@@ -32,38 +32,95 @@
       </div>
     </main>
     <script type="module">
-      import { getPlace } from "./js/mock.js";
-      import { getSession, setSession } from "./js/session.js";
-      const placeId = new URLSearchParams(location.search).get("place") || "kin-kin";
-      const p = getPlace(placeId);
-      document.getElementById("name").textContent = p.name;
-      document.getElementById("stats").innerHTML = `<strong>${p.goodPct}% Good</strong> · ${p.ratingCount} ratings`;
+      import { getPlace, getMyRating, postRating } from "./js/api.js";
+      import { requireAuth } from "./js/session.js";
+      if (!requireAuth()) throw new Error("redirecting");
+      const placeId = new URLSearchParams(location.search).get("place") || "since-then";
       let vote = "good";
+      let locked = false;
       const good = document.getElementById("good");
       const bad = document.getElementById("bad");
+      const submit = document.getElementById("submit");
+      const msg = document.getElementById("msg");
+
       function paint() {
-        good.className = "flex-1 py-3 rounded-lg font-title-md text-sm " + (vote === "good" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
-        bad.className = "flex-1 py-3 rounded-lg font-title-md text-sm " + (vote === "bad" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
+        const base = "flex-1 py-3 rounded-lg font-title-md text-sm ";
+        good.className = base + (vote === "good" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
+        bad.className = base + (vote === "bad" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
+        good.disabled = locked;
+        bad.disabled = locked;
+        submit.disabled = locked;
+        submit.textContent = locked ? "Already rated" : "Submit";
+        submit.classList.toggle("opacity-50", locked);
       }
+
+      function lock(existingVote, message) {
+        locked = true;
+        if (existingVote) vote = existingVote;
+        if (message) {
+          msg.textContent = message;
+          msg.classList.remove("hidden");
+        }
+        paint();
+      }
+
+      function statsHtml(p) {
+        const total = p.good_count + p.bad_count;
+        // good_pct is null under 5 ratings — "Baru", never "null% Good".
+        return p.good_pct == null
+          ? `<strong>Baru</strong> — not enough ratings yet (${total} so far)`
+          : `<strong>${p.good_pct}% Good</strong> · ${total} ratings`;
+      }
+
       good.onclick = () => {
+        if (locked) return;
         vote = "good";
         paint();
       };
       bad.onclick = () => {
+        if (locked) return;
         vote = "bad";
         paint();
       };
-      document.getElementById("submit").onclick = () => {
-        const votes = { ...(getSession()?.votes || {}) };
-        if (votes[placeId]) {
-          document.getElementById("msg").textContent = "You already rated this place.";
-          document.getElementById("msg").classList.remove("hidden");
+      submit.onclick = async () => {
+        if (locked) return;
+        try {
+          await postRating(placeId, vote);
+          location.href = `./place.html?id=${placeId}`;
+        } catch (e) {
+          if (e?.code === "VOTE_LOCKED") lock(null, "You already rated this place.");
+          else if (e?.status === 401) location.href = "./login.html";
+          else {
+            msg.textContent = e?.message || "Something went wrong. Try again.";
+            msg.classList.remove("hidden");
+          }
+        }
+      };
+
+      async function init() {
+        try {
+          const p = await getPlace(placeId);
+          document.getElementById("name").textContent = p.name;
+          document.getElementById("stats").innerHTML = statsHtml(p);
+        } catch {
+          document.getElementById("name").textContent = "this place";
+          document.getElementById("stats").textContent = "This place isn't on BiteMap yet.";
+          lock(null, null);
+          paint();
           return;
         }
-        votes[placeId] = vote;
-        setSession({ votes });
-        location.href = `./place.html?id=${placeId}`;
-      };
+        // Seed the toggle from the caller's existing rating; a 404
+        // RATING_NOT_FOUND means "not rated yet" — toggle stays unlocked.
+        try {
+          const mine = await getMyRating(placeId);
+          lock(mine.type, "You already rated this place.");
+        } catch (e) {
+          if (e?.status === 401) location.href = "./login.html";
+        }
+        paint();
+      }
+      paint();
+      init();
     </script>
   </body>
 </html>

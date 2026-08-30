@@ -1,4 +1,7 @@
-export const KL_CENTER = { lat: 3.139, lng: 101.6869 };
+// Mock data for the PARKED screens only (saved.html, follow.html,
+// influencers.html, influencer.html) and home.html's Following tab — no
+// follows/creators/saves API exists in MVP (see frontend/BACKEND.md "Parked").
+// Wired screens use js/api.js instead; don't add new consumers here.
 
 export const places = [
   {
@@ -147,15 +150,6 @@ export const creators = [
     picks: ["alor"],
   },
 ];
-
-export const currentUser = {
-  id: "u1",
-  name: "Ahmad Zakaria",
-  email: "ahmad.z@email.com",
-  pro: true,
-  avatar:
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80",
-};
 
 export function getPlace(id) {
   return places.find((p) => p.id === id) || places[0];

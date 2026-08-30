@@ -78,7 +78,8 @@
     <div id="app-nav"></div>
     </div>
     <script type="module">
-      import { places, creators, getCreatorByHandle, placesFromFollows } from "./js/mock.js";
+      import { getPlacesNearby, KL_CENTER, heatToPinClass, halalBadge, HALAL_FRIENDLY, goodPctShort, formatKm } from "./js/api.js";
+      import { creators, placesFromFollows } from "./js/mock.js";
       import { mountNav } from "./js/nav.js";
       import { getSession, setSession } from "./js/session.js";
       mountNav("map");
@@ -86,30 +87,52 @@
       const following = new Set(getSession()?.following || creators.filter((c) => c.following).map((c) => c.id));
       let feed = "nearby";
       let followSort = "rank";
-      const positions = {
-        "kin-kin": { top: "35%", left: "20%" },
-        wanjo: { top: "48%", left: "58%" },
-        alor: { top: "28%", left: "70%" },
-      };
+      // Contract-shaped nearby items, loaded from getPlacesNearby() (arrival
+      // order is the server's distance_km ASC, mention_count DESC).
+      let allPlaces = [];
       let selected = null;
       let sheetOpen = false;
       let filterOpen = false;
       const defaultFilters = { diet: "all", sort: "rank", category: "" };
       let filters = { ...defaultFilters };
+      // Diet filter runs on the 5-value halal_status enum, not a boolean:
+      // "halal" = jakim_certified/muslim_owned/pork_free, "non" = non_halal/unknown.
       const dietOptions = [
         ["all", "All"],
-        ["halal", "Halal"],
-        ["non", "Non-halal"],
+        ["halal", "Halal-friendly"],
+        ["non", "Non-halal / unknown"],
       ];
       const sortOptions = [
         ["rank", "Best"],
         ["distance", "Distance"],
         ["recent", "Recent"],
       ];
-      const categoryOptions = [...new Set(places.map((p) => p.category))];
+      let categoryOptions = [];
 
-      function pinColor(p) {
-        return p.heat === "chili" ? "bg-map-chili shadow-map-chili" : p.heat === "lime" ? "bg-map-lime" : "bg-map-mango shadow-map-mango";
+      // The Following tab is parked on mock.js (no follows API in MVP) —
+      // adapt its mock-shaped places to the contract item shape so one
+      // renderer serves both feeds.
+      const MOCK_HEAT = { chili: "high", mango: "medium", lime: "low" };
+      function fromMock(p) {
+        return {
+          id: p.id,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+          area: p.area,
+          category: p.category,
+          halal_status: p.halal ? "muslim_owned" : "non_halal",
+          price_band: null,
+          distance_km: p.km,
+          heat: MOCK_HEAT[p.heat] || "medium",
+          good_count: p.ratingCount || 0,
+          bad_count: 0,
+          good_pct: p.goodPct ?? null,
+          mention_count: 1,
+          last_mentioned_at: p.mentionedAt || null,
+          thumbnail_url: p.thumb || null,
+          latest_mention: p.mentionedBy || null,
+        };
       }
 
       function filterCount() {
@@ -119,8 +142,8 @@
       function applyCommonFilters(source) {
         const term = document.getElementById("q").value.toLowerCase().trim();
         return source.filter((p) => {
-          if (filters.diet === "halal" && !p.halal) return false;
-          if (filters.diet === "non" && p.halal) return false;
+          if (filters.diet === "halal" && !HALAL_FRIENDLY.has(p.halal_status)) return false;
+          if (filters.diet === "non" && HALAL_FRIENDLY.has(p.halal_status)) return false;
           if (filters.category && p.category !== filters.category) return false;
           return !term || p.name.toLowerCase().includes(term) || p.area.toLowerCase().includes(term);
         });
@@ -128,18 +151,20 @@
 
       function sortRows(rows, sort) {
         const copy = [...rows];
-        if (sort === "distance") copy.sort((a, b) => a.km - b.km);
-        else if (sort === "recent") copy.sort((a, b) => new Date(b.mentionedAt || 0) - new Date(a.mentionedAt || 0));
-        else copy.sort((a, b) => b.goodPct - a.goodPct);
+        if (sort === "distance") copy.sort((a, b) => a.distance_km - b.distance_km);
+        else if (sort === "recent") copy.sort((a, b) => new Date(b.last_mentioned_at || 0) - new Date(a.last_mentioned_at || 0));
+        // "Best" = the array's arrival order (distance_km ASC, mention_count
+        // DESC) — ratings never affect ordering (BACKEND.md:136), so no
+        // good_pct sort here.
         return copy;
       }
 
       function nearbyRows() {
-        return sortRows(applyCommonFilters(places), filters.sort);
+        return sortRows(applyCommonFilters(allPlaces), filters.sort);
       }
 
       function followingRows() {
-        return sortRows(applyCommonFilters(placesFromFollows(following)), followSort);
+        return sortRows(applyCommonFilters(placesFromFollows(following).map(fromMock)), followSort);
       }
 
       function listRows() {
@@ -151,9 +176,9 @@
           <a href="./place.html?id=${p.id}" class="block rounded-xl bg-sheet-surface border border-sheet-outline p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
             <div class="flex justify-between gap-2 mb-1">
               <h3 class="font-headline-sheet text-[18px] leading-6 text-tertiary-dark truncate">${p.name}</h3>
-              <span class="text-xs font-semibold text-secondary flex-shrink-0">${p.goodPct}% Good</span>
+              <span class="text-xs font-semibold text-secondary flex-shrink-0">${goodPctShort(p.good_pct)}</span>
             </div>
-            <p class="text-[13px] text-sheet-on-surface-muted">${p.area} · ${p.km} km</p>
+            <p class="text-[13px] text-sheet-on-surface-muted">${p.area} · ${formatKm(p.distance_km)}${p.latest_mention ? ` · ${p.latest_mention.handle}` : ""}</p>
           </a>`;
       }
 
@@ -225,7 +250,7 @@
       }
 
       function syncPeek() {
-        const p = places.find((x) => x.id === selected);
+        const p = allPlaces.find((x) => x.id === selected);
         const sheetPeek = document.getElementById("peek");
         const mapPeek = document.getElementById("map-peek");
         if (!p) {
@@ -248,16 +273,29 @@
         }
       }
 
+      // Pin positions are derived from each place's lat/lng, projected onto
+      // the bounding box of the whole nearby result set — no hardcoded ids,
+      // so pins survive any data swap.
+      function pinPosition(p) {
+        const lats = allPlaces.map((x) => x.lat);
+        const lngs = allPlaces.map((x) => x.lng);
+        const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+        const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+        const fx = maxLng === minLng ? 0.5 : (p.lng - minLng) / (maxLng - minLng);
+        const fy = maxLat === minLat ? 0.5 : (maxLat - p.lat) / (maxLat - minLat); // north at the top
+        return { top: `${(18 + fy * 52).toFixed(1)}%`, left: `${(10 + fx * 72).toFixed(1)}%` };
+      }
+
       function renderPins() {
         const rows = nearbyRows();
         document.getElementById("pins").innerHTML = rows
           .map((p) => {
-            const pos = positions[p.id] || { top: "40%", left: "40%" };
+            const pos = pinPosition(p);
             const on = p.id === selected;
             return `<button type="button" data-id="${p.id}" class="absolute flex flex-col items-center pointer-events-auto max-w-[140px]" style="top:${pos.top};left:${pos.left}">
               <span class="relative flex items-center justify-center">
                 ${on ? '<span class="absolute w-8 h-8 rounded-full border-2 border-map-lime pulse-ring"></span>' : ""}
-                <span class="w-5 h-5 rounded-full ${pinColor(p)} map-pin-glow z-10 border-2 border-map-surface ${on ? "glow-mango" : ""}"></span>
+                <span class="w-5 h-5 rounded-full ${heatToPinClass(p.heat)} map-pin-glow z-10 border-2 border-map-surface ${on ? "glow-mango" : ""}"></span>
               </span>
               <span class="mt-1 max-w-[140px] truncate bg-map-surface/90 text-map-on-surface px-2 py-0.5 rounded border border-map-outline font-map-pin text-map-pin ${on ? "text-map-mango font-bold" : ""}">${p.name}</span>
             </button>`;
@@ -271,25 +309,37 @@
         });
       }
 
+      const HALAL_BADGE_CLASS = {
+        good: "text-secondary bg-secondary-container",
+        bad: "text-error bg-error-container",
+        neutral: "text-sheet-on-surface-muted bg-sheet-surface-low border border-sheet-outline",
+      };
+
       function placeRow(p) {
-        const creator = getCreatorByHandle(p.mentionedBy.handle);
-        const avatar = creator?.avatar ? `<img src="${creator.avatar}" alt="" class="w-4 h-4 rounded-full object-cover" />` : "";
         const on = p.id === selected;
+        // thumbnail_url can be null — render a placeholder, never a broken <img>.
+        const thumb = p.thumbnail_url
+          ? `<img src="${p.thumbnail_url}" alt="" class="w-16 h-16 rounded-2xl object-cover border border-sheet-outline" />`
+          : `<div class="w-16 h-16 rounded-2xl border border-sheet-outline bg-sheet-surface-low flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined text-sheet-on-surface-muted">restaurant</span></div>`;
+        const badge = halalBadge(p.halal_status);
+        const mention = p.latest_mention
+          ? `<span class="inline-flex items-center gap-1 bg-sheet-surface-low px-1.5 py-0.5 rounded-full border border-sheet-outline">
+              <span class="text-[10px] font-semibold text-sheet-on-surface-muted">${p.latest_mention.handle}</span>
+            </span>`
+          : "";
+        const meta = [goodPctShort(p.good_pct), p.category, formatKm(p.distance_km)].filter(Boolean).join(" · ");
         return `<a id="row-${p.id}" href="./place.html?id=${p.id}" class="flex gap-4 p-2 -mx-2 rounded-xl ${on ? "bg-sheet-surface-low" : "hover:bg-sheet-surface-low"}">
-          <img src="${p.thumb}" alt="" class="w-16 h-16 rounded-2xl object-cover border border-sheet-outline" />
+          ${thumb}
           <div class="flex-1 min-w-0">
             <div class="flex justify-between gap-2">
               <h3 class="font-title-md text-title-md text-tertiary-dark truncate">${p.name}</h3>
               <button type="button" data-save="${p.id}" class="p-1.5 rounded-full border border-sheet-outline text-sheet-on-surface-muted"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' ${saved.has(p.id) ? 1 : 0}">bookmark</span></button>
             </div>
             <div class="flex items-center gap-2 mt-1">
-              <span class="text-[10px] font-bold uppercase ${p.halal ? "text-secondary bg-secondary-container" : "text-error bg-error-container"} px-1.5 py-0.5 rounded">${p.halal ? "Halal" : "Non-halal"}</span>
-              <span class="inline-flex items-center gap-1 bg-sheet-surface-low px-1.5 py-0.5 rounded-full border border-sheet-outline">
-                ${avatar}
-                <span class="text-[10px] font-semibold text-sheet-on-surface-muted">${p.mentionedBy.handle}</span>
-              </span>
+              <span class="text-[10px] font-bold uppercase ${HALAL_BADGE_CLASS[badge.tone]} px-1.5 py-0.5 rounded">${badge.label}</span>
+              ${mention}
             </div>
-            <p class="text-sm text-sheet-on-surface-muted mt-1">${p.stars} · ${p.category} · ${p.km} km</p>
+            <p class="text-sm text-sheet-on-surface-muted mt-1">${meta}</p>
           </div>
         </a>`;
       }
@@ -335,8 +385,7 @@
           });
         }
         const tags = [];
-        if (filters.diet === "halal") tags.push("Halal");
-        if (filters.diet === "non") tags.push("Non-halal");
+        if (filters.diet !== "all") tags.push(dietOptions.find(([id]) => id === filters.diet)?.[1]);
         if (!followingOn && filters.sort !== "rank") tags.push(sortOptions.find(([id]) => id === filters.sort)?.[1]);
         if (filters.category) tags.push(filters.category);
         const filterBar = document.getElementById("active-filters");
@@ -407,8 +456,28 @@
         filters = { ...defaultFilters };
         render();
       };
+      async function init() {
+        // One nearby call feeds the map pins AND the list sheet. Filters,
+        // search, and sort are all client-side over the returned items.
+        const loc = getSession()?.location;
+        const lat = typeof loc?.lat === "number" ? loc.lat : KL_CENTER.lat;
+        const lng = typeof loc?.lng === "number" ? loc.lng : KL_CENTER.lng;
+        try {
+          const res = await getPlacesNearby({ lat, lng, radius_km: 5 });
+          // fallback: "kl_trending" items are still real KL places — render
+          // them the same way, no special empty state.
+          allPlaces = res.items;
+          categoryOptions = [...new Set(allPlaces.map((p) => p.category).filter(Boolean))];
+        } catch (e) {
+          console.error("nearby failed", e);
+          allPlaces = [];
+        }
+        render();
+      }
+
       render();
       setSheet(false);
+      init();
     </script>
   </body>
 </html>

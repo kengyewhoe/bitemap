@@ -24,40 +24,153 @@
       </div>
     </div>
     <script type="module">
-      import { getPlace } from "./js/mock.js";
+      import { getPlace, getPlacePosts, halalBadge, priceBandLabel, goodPctLabel } from "./js/api.js";
       import { getSession, setSession } from "./js/session.js";
-      const id = new URLSearchParams(location.search).get("id") || "kin-kin";
-      const p = getPlace(id);
-      document.title = `BiteMap — ${p.name}`;
-      const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + " " + p.address)}`;
-      document.getElementById("body").innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <h1 class="font-headline-sheet text-[20px] leading-6 text-[#191C1E] pr-2">${p.name}</h1>
-          <div class="bg-[#FBE9E7] text-[#D84315] px-2 py-0.5 rounded flex items-center gap-1 text-xs font-semibold">${p.stars}</div>
-        </div>
-        <div class="flex flex-wrap gap-2 text-[#5A6570] mb-3 text-xs">
-          <span>${p.category}</span><span>${p.price}</span><span>${p.walkMin} min walk</span>
-        </div>
-        <p class="text-[#5A6570] text-[13px] leading-relaxed mb-4">${p.blurb}</p>
-        <h2 class="font-title-md text-[15px] mb-2">As seen on</h2>
-        <a href="#" class="block bg-[#F8FAFC] rounded-xl border border-sheet-outline p-2.5 mb-4">
+      const id = new URLSearchParams(location.search).get("id") || "since-then";
+
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      // Contract deeplinks (BACKEND.md:224-228): Waze primary; Google Maps with
+      // query_place_id when provider_place_id exists, plain lat/lng otherwise
+      // (with a name+address text query only as the no-place-id fallback).
+      function directionsLinks(p) {
+        const waze = `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`;
+        const gmaps = p.provider_place_id
+          ? `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}&query_place_id=${encodeURIComponent(p.provider_place_id)}`
+          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address ? `${p.name} ${p.address}` : `${p.lat},${p.lng}`)}`;
+        return { waze, gmaps };
+      }
+
+      // "As seen on" — tap-to-load embed cards (BACKEND.md:216-222).
+      function postCard(post, idx) {
+        const sponsored = post.is_sponsored ? '<span class="text-[10px] font-bold uppercase bg-[#FFF3E0] text-[#E65100] px-1.5 py-0.5 rounded">Sponsored</span>' : "";
+        const media = post.thumbnail_url
+          ? `<img src="${post.thumbnail_url}" alt="" class="w-full h-28 object-cover rounded-lg" />`
+          : `<div class="w-full h-28 rounded-lg bg-[#F1F3F5] flex flex-col items-center justify-center gap-1 text-[#5A6570]">
+              <span class="material-symbols-outlined">${post.media_kind === "reel" ? "movie" : "photo_camera"}</span>
+              <span class="text-[11px] font-semibold">Tap to load ${post.platform === "instagram" ? "Instagram" : "original"} ${post.media_kind === "reel" ? "reel" : "post"}</span>
+            </div>`;
+        const summary = post.content_summary ? `<p class="text-[12px] text-[#5A6570] mt-2 leading-relaxed">${esc(post.content_summary)}</p>` : "";
+        return `<div data-post="${idx}" class="bg-[#F8FAFC] rounded-xl border border-sheet-outline p-2.5 mb-2 cursor-pointer">
           <div class="flex items-center gap-2 mb-2">
-            <div class="font-title-md text-[13px]">${p.mentionedBy.handle}</div>
-            <div class="text-[11px] text-[#5A6570]">oEmbed / open original</div>
+            <div class="font-title-md text-[13px]">${esc(post.creator?.handle || "")}</div>
+            ${sponsored}
+            <div class="text-[11px] text-[#5A6570] ml-auto">Tap to load</div>
           </div>
-          <img src="${p.thumb}" alt="" class="w-full h-28 object-cover rounded-lg" />
-        </a>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-[#F8FAFC] p-3 rounded-xl border border-sheet-outline"><div class="font-title-md text-[13px] mb-1">Hours</div><div class="text-[12px] text-[#5A6570]">${p.hours}</div></div>
-          <div class="bg-[#F8FAFC] p-3 rounded-xl border border-sheet-outline"><div class="font-title-md text-[13px] mb-1">Address</div><div class="text-[12px] text-[#5A6570]">${p.address}</div></div>
+          ${media}
+          ${summary}
         </div>`;
-      document.getElementById("actions").innerHTML = `
-        <a href="./rate.html?place=${p.id}" class="block w-full text-center bg-surface-variant text-primary rounded-xl py-2.5 text-[15px] font-semibold">I tried this</a>
-        <a href="${maps}" target="_blank" rel="noopener" class="block w-full text-center bg-[#FF6B00] text-white rounded-xl py-2.5 text-[15px] font-semibold">Directions</a>`;
+      }
+
+      function embedHtml(post) {
+        if (post.platform !== "instagram") {
+          // No embed path for tiktok/youtube/other yet — link to the original.
+          return `<div class="bg-[#F8FAFC] rounded-xl border border-sheet-outline p-3 mb-2 text-center">
+            <a href="${post.post_url}" target="_blank" rel="noopener" class="text-primary font-semibold text-[13px]">Open original</a>
+          </div>`;
+        }
+        // media_kind sizes the frame: reel → tall 9:16, post → square-ish.
+        const frameClass = post.media_kind === "reel" ? "aspect-[9/16] max-h-[480px]" : "aspect-[4/5]";
+        const src = `${post.post_url.replace(/\/?$/, "/")}embed/`;
+        return `<div class="bg-[#F8FAFC] rounded-xl border border-sheet-outline p-2.5 mb-2">
+          <iframe src="${src}" class="w-full ${frameClass} rounded-lg border-0" loading="lazy" allowfullscreen></iframe>
+          <a href="${post.post_url}" target="_blank" rel="noopener" class="block text-[11px] text-[#5A6570] mt-1">Open on Instagram</a>
+        </div>`;
+      }
+
+      async function renderPosts(placeId) {
+        const host = document.getElementById("posts");
+        if (!host) return;
+        let items = [];
+        try {
+          items = (await getPlacePosts(placeId)).items || [];
+        } catch {
+          items = [];
+        }
+        if (!items.length) {
+          host.innerHTML = '<p class="text-[12px] text-[#5A6570] mb-4">No mentions yet.</p>';
+          return;
+        }
+        host.innerHTML = items.map(postCard).join("");
+        host.querySelectorAll("[data-post]").forEach((card) => {
+          card.onclick = () => {
+            const post = items[Number(card.dataset.post)];
+            card.outerHTML = embedHtml(post);
+          };
+        });
+      }
+
+      function renderNotFound() {
+        document.title = "BiteMap — Place";
+        document.getElementById("body").innerHTML = `
+          <div class="py-10 text-center">
+            <span class="material-symbols-outlined text-4xl text-[#5A6570] mb-2">ramen_dining</span>
+            <h1 class="font-headline-sheet text-[18px] text-[#191C1E] mb-1">This place isn't on BiteMap yet</h1>
+            <p class="text-[13px] text-[#5A6570]">Head back to the map to find what's nearby.</p>
+          </div>`;
+        document.getElementById("actions").innerHTML = `
+          <a href="./home.html" class="block w-full text-center bg-[#FF6B00] text-white rounded-xl py-2.5 text-[15px] font-semibold">Back to map</a>`;
+      }
+
+      function renderPlace(p) {
+        document.title = `BiteMap — ${p.name}`;
+        // good_pct can be null (< 5 ratings) — show the "Baru" state, never "null%".
+        const pctBadge = p.good_pct == null
+          ? '<div class="bg-[#F1F3F5] text-[#5A6570] px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap">Baru</div>'
+          : `<div class="bg-[#FBE9E7] text-[#D84315] px-2 py-0.5 rounded flex items-center gap-1 text-xs font-semibold whitespace-nowrap">${p.good_pct}% Good</div>`;
+        const badge = halalBadge(p.halal_status);
+        const chips = [p.category, priceBandLabel(p.price_band), p.area, badge.label].filter(Boolean);
+        // photo_url and thumbnail_url are the same asset — render ONE image,
+        // with a placeholder when null (never a broken <img>).
+        const photo = p.photo_url || p.thumbnail_url;
+        const hero = photo
+          ? `<img src="${photo}" alt="" class="w-full h-36 object-cover rounded-xl mb-3" />${p.photo_credit ? `<p class="text-[10px] text-[#5A6570] -mt-2 mb-3">${esc(p.photo_credit)}</p>` : ""}`
+          : `<div class="w-full h-24 rounded-xl bg-[#F1F3F5] flex items-center justify-center mb-3"><span class="material-symbols-outlined text-[#5A6570] text-3xl">restaurant</span></div>`;
+        const quote = p.latest_mention ? `<p class="text-[#5A6570] text-[13px] leading-relaxed mb-4">"${esc(p.latest_mention.quote)}" — ${esc(p.latest_mention.handle)}</p>` : "";
+        const ratingsLine = `${goodPctLabel(p.good_pct)} · ${p.good_count + p.bad_count} ratings`;
+        document.getElementById("body").innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <h1 class="font-headline-sheet text-[20px] leading-6 text-[#191C1E] pr-2">${p.name}</h1>
+            ${pctBadge}
+          </div>
+          <div class="flex flex-wrap gap-2 text-[#5A6570] mb-3 text-xs">
+            ${chips.map((c) => `<span>${esc(c)}</span>`).join("")}
+          </div>
+          ${hero}
+          <p class="text-[12px] text-[#5A6570] mb-3">${ratingsLine}</p>
+          ${quote}
+          <h2 class="font-title-md text-[15px] mb-2">As seen on</h2>
+          <div id="posts"><p class="text-[12px] text-[#5A6570] mb-4">Loading mentions…</p></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-[#F8FAFC] p-3 rounded-xl border border-sheet-outline"><div class="font-title-md text-[13px] mb-1">Hours</div><div class="text-[12px] text-[#5A6570]">${esc(p.hours_note || "Not available yet")}</div></div>
+            <div class="bg-[#F8FAFC] p-3 rounded-xl border border-sheet-outline"><div class="font-title-md text-[13px] mb-1">Address</div><div class="text-[12px] text-[#5A6570]">${esc(p.address || p.area || "Not available yet")}</div></div>
+          </div>`;
+        const { waze, gmaps } = directionsLinks(p);
+        document.getElementById("actions").innerHTML = `
+          <a href="./rate.html?place=${p.id}" class="block w-full text-center bg-surface-variant text-primary rounded-xl py-2.5 text-[15px] font-semibold">I tried this</a>
+          <div class="flex gap-2">
+            <a href="${waze}" target="_blank" rel="noopener" class="flex-1 text-center bg-[#FF6B00] text-white rounded-xl py-2.5 text-[15px] font-semibold">Waze</a>
+            <a href="${gmaps}" target="_blank" rel="noopener" class="flex-1 text-center bg-white border border-sheet-outline text-[#191C1E] rounded-xl py-2.5 text-[15px] font-semibold">Google Maps</a>
+          </div>`;
+        renderPosts(p.id);
+      }
+
+      async function init() {
+        try {
+          renderPlace(await getPlace(id));
+        } catch (e) {
+          renderNotFound();
+          if (e?.status !== 404) console.error(e);
+        }
+      }
+      init();
+
       document.getElementById("save").onclick = () => {
         const s = new Set(getSession()?.saved || []);
-        if (s.has(p.id)) s.delete(p.id);
-        else s.add(p.id);
+        if (s.has(id)) s.delete(id);
+        else s.add(id);
         setSession({ saved: [...s] });
       };
     </script>

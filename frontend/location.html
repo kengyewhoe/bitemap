@@ -31,9 +31,12 @@
       </div>
     </main>
     <script type="module">
+      import { KL_CENTER } from "./js/api.js";
       import { setSession } from "./js/session.js";
       function next(coords) {
-        setSession({ location: coords || { mode: "kl-centroid" }, onboardedLocation: true });
+        // Denied / unavailable → KL centroid fallback; lat/lng are only ever
+        // query params on /places/nearby, never persisted server-side.
+        setSession({ location: coords || { ...KL_CENTER, mode: "kl-centroid" }, onboardedLocation: true });
         location.href = "./follow.html";
       }
       document.getElementById("browse").onclick = () => next(null);

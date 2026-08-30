@@ -22,32 +22,27 @@
         <div class="w-16 h-16 rounded-full bg-map-mango flex items-center justify-center mb-6 text-map-background font-display-map text-2xl">B</div>
         <h1 class="font-headline-sheet text-headline-sheet text-sheet-on-surface tracking-tight mb-2">Welcome back to the heat</h1>
         <p class="font-body-md text-body-md text-sheet-on-surface-muted mb-8">Log in to find what’s actually legit.</p>
-        <form id="login-form" class="w-full flex flex-col gap-4 text-left">
-          <label class="font-label-caps text-label-caps text-sheet-on-surface uppercase" for="email">Email address</label>
-          <input id="email" type="email" required placeholder="you@email.com" class="w-full bg-sheet-surface-low border border-sheet-outline rounded-[16px] px-4 py-3 font-body-md text-body-md text-sheet-on-surface focus:outline-none focus:border-primary-container" />
-          <p id="err" class="hidden text-error text-sm"></p>
-          <button type="submit" class="w-full mt-2 bg-primary-container text-white font-title-md text-title-md py-4 rounded-[16px] active:scale-[0.98]">Continue with Email</button>
-        </form>
-        <div class="w-full flex items-center gap-4 my-6">
-          <div class="h-px bg-sheet-outline flex-1"></div>
-          <span class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase">or</span>
-          <div class="h-px bg-sheet-outline flex-1"></div>
-        </div>
-        <button id="google" type="button" class="w-full bg-sheet-surface border border-sheet-outline text-sheet-on-surface font-title-md text-title-md py-4 rounded-[16px] active:scale-[0.98]">Sign in with Google</button>
-        <p class="font-body-md text-sheet-on-surface-muted mt-8">Don’t have an account? <a class="text-primary-container font-medium" href="./login.html">Sign up</a></p>
+        <!-- Auth is Google-only (BACKEND.md:22) — no email/OTP/magic-link path. -->
+        <button id="google" type="button" class="w-full bg-primary-container text-white font-title-md text-title-md py-4 rounded-[16px] active:scale-[0.98]">Continue with Google</button>
+        <p id="err" class="hidden text-error text-sm mt-3"></p>
+        <p class="font-body-md text-sheet-on-surface-muted mt-8">One tap — your Google account is your BiteMap account.</p>
       </div>
     </main>
     <script type="module">
-      import { setSession } from "./js/session.js";
-      function go() {
-        setSession({ userId: "u1", email: document.getElementById("email").value || "ahmad.z@email.com" });
-        location.href = "./location.html";
-      }
-      document.getElementById("login-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        go();
+      // signIn() fakes the session for now; the real
+      // supabase.auth.signInWithOAuth({ provider: "google" }) swap lives in
+      // js/api.js (see its TODO) — this screen won't change.
+      import { signIn } from "./js/api.js";
+      document.getElementById("google").addEventListener("click", async () => {
+        try {
+          await signIn();
+          location.href = "./location.html";
+        } catch (e) {
+          const err = document.getElementById("err");
+          err.textContent = e?.message || "Sign-in failed. Try again.";
+          err.classList.remove("hidden");
+        }
       });
-      document.getElementById("google").addEventListener("click", go);
     </script>
   </body>
 </html>
