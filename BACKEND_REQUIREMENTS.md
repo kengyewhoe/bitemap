@@ -88,6 +88,7 @@ Load `supabase:supabase-postgres-best-practices` before changing any of this. De
 - **`timestamptz` everywhere**, no bare `timestamp`.
 - **RLS enabled on every table** (§6). No table is force-RLS'd, so the `service_role` key used for seeding and any future server-side job continues to bypass RLS as intended.
 - **A `place_cards` view derives counts** (`mention_count`, `good_count`, `bad_count`, `last_mentioned_at`, `heat`) from `posts` and `user_ratings` at query time. Nothing is stored as a denormalized counter — there is no counter-drift class of bug to worry about at this scale. It is declared `security_invoker = true` (§5.8/§6) — a view is meaningless as an RLS boundary without it, since it would otherwise run with its creator's privileges and ignore the policies below entirely.
+- **`good_count`/`bad_count` still go through a `SECURITY DEFINER` function** (`private.place_rating_counts`, §5.7.1), not a direct join, precisely *because* the view is `security_invoker = true`: a direct join to `user_ratings` would inherit the `user_ratings_select_own` policy and only ever see the caller's own vote (or nothing, for `anon`). The function returns just the two aggregates — never a row, never `user_id` — so counts stay public without widening row-level access to who voted what.
 - **No spatial index.** `distance_km` is computed with haversine over every published place per the constraint in the shared plan ("hundreds of rows"). A full scan of `places` per `/places/nearby` call is the right amount of engineering for that row count — do not add PostGIS or a bounding-box index preemptively.
 
 ### 5.1 Enum types
@@ -278,6 +279,35 @@ create index user_ratings_place_id_idx on public.user_ratings (place_id);
 
 No update or delete path — lock semantics mean the unique constraint is the only enforcement needed. A second `INSERT` for the same `(user_id, place_id)` raises Postgres error `23505`, which the route handler maps to `409 VOTE_LOCKED`.
 
+### 5.7.1 `place_rating_counts` (security definer)
+
+`place_cards` (§5.8) is `security_invoker = true`, so its own table reads run as the querying role — which is exactly right for `places` and `posts` (their `anon`/`authenticated` policies already allow the rows the view needs). It is **not** right for `user_ratings`: `user_ratings_select_own` (§6) only lets a user read their own row, by design — the whole point of the policy is that nobody, `anon` or another `authenticated` user, gets row-level access to who-voted-what.
+
+A broader select policy on `user_ratings` isn't a fix, because RLS is row-level, not column-level: any policy wide enough to let the view sum everyone's votes also lets a client `select user_id from user_ratings` directly and see who voted. Good/Bad counts need to be public; the rows behind them must not be. The one construct that gives both is a `SECURITY DEFINER` function that returns only the two aggregates, in a schema Supabase's API layer doesn't expose (so it isn't reachable as a direct RPC call, only from inside the view's own query):
+
+```sql
+create schema if not exists private;
+
+create or replace function private.place_rating_counts(p_place_id text)
+returns table (good_count bigint, bad_count bigint)
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select
+    count(*) filter (where rating_type = 'good'),
+    count(*) filter (where rating_type = 'bad')
+  from public.user_ratings
+  where place_id = p_place_id;
+$$;
+
+revoke all on function private.place_rating_counts(text) from public;
+grant execute on function private.place_rating_counts(text) to anon, authenticated;
+```
+
+`anon`/`authenticated` need `EXECUTE` because `place_cards` runs as the querying role and calls this function from inside its own query — a `SECURITY DEFINER` function's body always runs with its owner's privileges regardless of who's allowed to call it, so granting `EXECUTE` here does not reopen row-level access; it only lets the caller ask "how many good/bad on this place," never "whose."
+
 ### 5.8 `place_cards` view
 
 ```sql
@@ -323,13 +353,7 @@ left join lateral (
     and po.is_self_interest = false
     and po.ingest_status in ('ready', 'matched')
 ) mentions on true
-left join lateral (
-  select
-    count(*) filter (where ur.rating_type = 'good') as good_count,
-    count(*) filter (where ur.rating_type = 'bad') as bad_count
-  from public.user_ratings ur
-  where ur.place_id = p.id
-) ratings on true
+left join lateral private.place_rating_counts(p.id) as ratings (good_count, bad_count) on true
 left join lateral (
   select pa.handle, po.content_summary as quote
   from public.posts po
@@ -344,6 +368,8 @@ left join lateral (
 
 `good_pct` is **not** in the view — it depends on the ≥5-rating display rule (§8), which the route handler applies after reading `good_count`/`bad_count` so the null-under-5 threshold lives in one place (application code), not duplicated in SQL.
 
+`good_count`/`bad_count` come from `private.place_rating_counts` (§5.7.1), not a direct join to `user_ratings` — see §6 for why the view being `security_invoker = true` makes that necessary rather than optional.
+
 `photo_visible` is enforced **inside the view**, not by any endpoint: `photo_url`/`photo_credit` come back `null` whenever `places.photo_visible = false`. This is the one and only place that gate is applied — no DTO or route handler needs its own check, and none should add one (a second check would be redundant at best, and could silently disagree with the view at worst).
 
 The column is `places.photo_url`; the JSON field is `thumbnail_url` on the nearby/place item DTO (§8.2, §8.3) — the view keeps the column's real name, and the route handler is what renames `photo_url` → `thumbnail_url` when assembling that DTO, to match the FE's existing field name for card thumbnails. `GET /places/:id` (§8.3) additionally echoes the same value back under its own real column name, `photo_url` — that's the identical asset under two field names for two render contexts (list-card thumbnail vs. full-detail hero image), not two different photos; there is only one photo per place in MVP.
@@ -354,7 +380,9 @@ The column is `places.photo_url`; the JSON field is `thumbnail_url` on the nearb
 
 Every table has RLS enabled. There are no `FORCE ROW LEVEL SECURITY` statements, so `service_role` (Supabase table editor, any seed script) continues to read and write everything — that is the intended path for all content writes in MVP.
 
-**`place_cards` (§5.8) is declared `security_invoker = true`** (Postgres 15+, which Supabase runs). Without it, a view created by a migration/admin role executes with that role's privileges regardless of who queries it — silently bypassing every RLS policy below and returning draft/hidden places and non-renderable posts to `anon`. `security_invoker = true` makes the view evaluate RLS on `places`/`posts`/`user_ratings` as the querying role (`anon` or `authenticated`), exactly as if those tables were queried directly. The endpoint SQL in §8 still filters `where pc.status = 'published'` on top of that — defense in depth, not a substitute for it.
+**`place_cards` (§5.8) is declared `security_invoker = true`** (Postgres 15+, which Supabase runs). Without it, a view created by a migration/admin role executes with that role's privileges regardless of who queries it — silently bypassing every RLS policy below and returning draft/hidden places and non-renderable posts to `anon`. `security_invoker = true` makes the view evaluate RLS on `places` and `posts` as the querying role (`anon` or `authenticated`), exactly as if those tables were queried directly — and for those two tables that's sufficient, because `places_select_published` and `posts_select_renderable` below already grant `anon`/`authenticated` exactly the rows the view needs. The endpoint SQL in §8 still filters `where pc.status = 'published'` on top of that — defense in depth, not a substitute for it.
+
+**It is deliberately *not* sufficient for `user_ratings`.** Under `security_invoker = true`, a direct join from the view to `user_ratings` would also run as the querying role — and `user_ratings_select_own` below only lets a user read their *own* row. `anon` would see zero rows and `authenticated` would see only their own vote, so `good_count`/`bad_count` would silently read as 0-or-1 instead of the place's real totals for everyone except (at most) the caller. Widening `user_ratings_select_own` isn't a fix: RLS is row-level, and any policy broad enough to let the view sum every user's vote is also broad enough to let a client `select user_id from user_ratings` and see who voted on what — a real privacy leak, not a hypothetical one. Counts need to be public; the rows behind them must not be. `place_cards` resolves this by calling `private.place_rating_counts` (§5.7.1), a `SECURITY DEFINER` function that returns only the two aggregates and is never granted to `anon`/`authenticated` as a direct table read — it is the one intentional exception to "the view runs as the querying role," scoped as narrowly as the two integers it returns.
 
 ```sql
 alter table public.users enable row level security;
