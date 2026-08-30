@@ -1,13 +1,13 @@
-# BiteMap — Backend, Business Logic & Data Model Requirements
+# BiteMap — Backend Requirements (MVP)
 
-**Status:** Draft for MVP implementation  
-**Audience:** Backend / API / data  
-**Product source:** [`SPEC.md`](SPEC.md)  
-**Frontend mapping:** [`frontend/BACKEND.md`](frontend/BACKEND.md)  
-**Launch:** Kuala Lumpur metro · mobile web  
-**Last updated:** 2026-08-30
+**Status:** MVP implementation contract — scoped down per the [MVP cut agreed 30/08/2026](SPEC.md#mvp-cut-agreed-30082026)
+**Audience:** Backend / API / data
+**Product source:** [`SPEC.md`](SPEC.md) §8 "MVP cut (agreed 30/08/2026)" — where this file and that subsection conflict, the subsection wins.
+**Frontend mapping:** [`frontend/BACKEND.md`](frontend/BACKEND.md)
+**Launch:** Kuala Lumpur metro · mobile web
+**Last updated:** 30/08/2026
 
-This document is the implementation contract for the API, persistence, and domain rules. Where it conflicts with archived drafts, **this file + `SPEC.md` win**. Where the live UI and `SPEC.md` differ on *what is rated*, §3.1 wins (place-level Good/Bad for v1 screens).
+This file replaces the earlier broad draft (NestJS/Redis/PostGIS, 13 tables, follows/claims/leaderboard) with exactly what the MVP cut ships. The old draft's shape is preserved in git history and is not a design target — nothing below should be read as "temporarily incomplete" version of it. Cut features are listed in §7 (Deferred) with the schema hook that keeps them cheap to re-add, not implemented early.
 
 ---
 
@@ -15,14 +15,19 @@ This document is the implementation contract for the API, persistence, and domai
 
 The backend exists to:
 
-1. Authenticate users and authorize votes / follows / claims / saves.
-2. Serve **nearby KL places** (map pins + list) ranked for “eat now,” plus a **Following** list (`followed=1`) of Trending / New picks from creators the user follows.
-3. Serve **place detail** with influencer mentions (oEmbed + thumbnails — **no video files**).
-4. Record **Good / Bad** (honor-system visit) and keep place + creator scores consistent.
-5. Serve **creator profiles**, follow graph, and trust ranking.
-6. Support **curated ingest** (manual first) that matches posts to Google Place IDs.
+1. Authenticate users via Supabase Auth (Google provider) and gate ratings on a signed-in session.
+2. Serve **nearby KL places** — one endpoint feeds both the map pins and the list.
+3. Serve **place detail** with influencer mentions as official Instagram embeds, tap-to-load.
+4. Record **Good / Bad on a place** (honor-system "I went"), one vote per user per place, locked after submit.
+5. Expose the current user via `GET /me`.
 
-It does **not** exist to scrape at request time, host TikTok/IG binaries, or verify GPS check-ins.
+It does **not**, in MVP:
+
+- Scrape or call any external API at request time (no Google Places lookups, no oEmbed fetch server-side).
+- Host or re-encode video. Instagram embeds render client-side from `post_url`.
+- Compute a credibility or weighted-rank formula. `mention_count` (distinct non-self-interest creators) stands in for trust everywhere in the UI.
+- Run Redis, background jobs, an oEmbed refresh pipeline, PostGIS, or NestJS.
+- Expose an ops API or admin UI. All seeding and moderation is manual, via the Supabase table editor, per [`seed/PLAYBOOK.md`](seed/PLAYBOOK.md).
 
 ---
 
@@ -30,46 +35,36 @@ It does **not** exist to scrape at request time, host TikTok/IG binaries, or ver
 
 | Layer | Choice | Requirement |
 |---|---|---|
-| API | Node.js + NestJS | Versioned JSON REST (`/v1/...`). HTTPS only. |
-| DB | PostgreSQL 15+ + PostGIS | All geospatial queries in-DB. UUID PKs. |
-| Cache | Redis | Nearby geohash, oEmbed HTML, leaderboard, rate limits. |
-| Auth | Email OTP and/or Google OAuth | JWT access (~15m) + refresh (~30d). |
-| Maps / Places | Google Places (or Mapbox — pick one) | Place ID is venue source of truth. Budget-cap all calls. |
-| Media | oEmbed + remote thumbnail URLs | **Zero video bytes on our origin / CDN / object storage.** |
-| Ingest | Manual/curated jobs; optional later Python collectors | LLM extract **on ingest only**, results cached. |
+| API | Next.js route handlers, deployed on Vercel | Plain JSON REST, no version prefix — paths match `frontend/BACKEND.md` exactly (`/places/nearby`, not `/v1/places/nearby`). HTTPS only. |
+| DB | Supabase Postgres | `lat`/`lng` as `double precision` + haversine in SQL. Hundreds of rows at MVP scale — no PostGIS, no geospatial index. |
+| Auth | Supabase Auth, Google provider only | FE uses the Supabase JS client directly; no custom `/auth/*` endpoints on this API. Session = Supabase JWT, read server-side via the Supabase SSR helper. |
+| Storage | Supabase Storage | Place photos and creator avatars only. Source CDN URLs (Instagram, Google) expire — bytes are always re-hosted here before going live. |
+| Maps | Google Maps + Waze deeplinks, client-side only | No Google Places API calls from this backend. `provider_place_id` is filled by hand during seeding when a place is confirmed on Google Maps. |
+| Ingest | None automated | Posts and places are entered by hand via the Supabase table editor, per `seed/PLAYBOOK.md`. No LLM calls, no matching job. |
+| Media render | Official Instagram embed (oEmbed iframe), tap-to-load | MVP only renders `platform = 'instagram'` posts this way; other platform values may exist in the schema (a creator's TikTok, say) but have no FE render path yet. |
 
-**Clients:** `frontend/` mock today; production mobile web. Same API.
+**Clients:** `frontend/` — mock data + `localStorage` today, becomes a real client of this API. `frontend/BACKEND.md` is rewritten (next task) to copy this file's endpoint JSON verbatim.
 
-**Environments:** `dev` · `staging` · `prod`. Seed data required in all three so maps are never empty.
+**Environments:** One Supabase project is sufficient for MVP. No dev/staging/prod split is required by this contract; add one later if the team wants a safety net before prod writes.
 
 ---
 
-## 3. Locked domain decisions
+## 3. Domain rules (binding)
 
 | Topic | Rule |
 |---|---|
-| Geography | KL metro only. Reject or clamp queries outside the KL bounding box. Distances in **km**. |
-| Default radius | **5 km**. Max allowed **10 km**. |
-| Empty map | If &lt; 3 places in **Nearby** (`followed=0`) radius, fall back to **KL trending** (city-wide, still KL-only). Never return `[]` as the only **Nearby / pin** state. **Following** (`followed=1`) may be empty — do not substitute KL trending. |
-| Guest | May browse nearby + place + creators. **Must be signed in to vote, follow, save, claim.** |
-| Visit proof | Honor system. Do **not** persist a “verified visit” flag. API copy/errors must not say verified. |
-| Video | Store `post_url`, `thumbnail_url`, `oembed_html`. Never download or re-encode video. |
-| Matching | Commit a place only with `provider_place_id` (or ops override). Never name-only. |
-| Followers | May cache `follower_count`. **Never** use it for leaderboard or nearby rank. |
-| Sharing | Not required. No OG image generation in MVP. |
-
-### 3.1 What a rating is (v1 lock)
-
-**UI / core flow (login → nearby → preview → rate):** a rating is **Good or Bad on a place**.
-
-- Unique `(user_id, place_id)`.
-- Default: **lock after submit** (`409` on second vote).
-- Place meter: `good_pct = good_count / (good_count + bad_count)`.
-- Creator trust: roll up from ratings on **places they have a mapped `post` for** (see §6.2).
-
-`SPEC.md` described post-level Legit/Hype. That remains a **v2 option**. Schema keeps `post_id` **nullable** so we can add tip-level votes without a migration crisis.
-
-**Labels in API:** `good` | `bad`. UI may say “Was it legit?” — persist `good`/`bad`.
+| Geography | KL bounding box: south `2.90`, north `3.30`, west `101.50`, east `101.90`. Coordinates outside the box are ignored in favour of the KL centroid `(3.1390, 101.6869)`. |
+| Nearby radius | Default and only radius for MVP: **5 km**. `radius_km` is accepted as a query param but the FE always sends `5`. |
+| Empty map | Fewer than 3 places within the radius → fall back to city-wide "KL trending" (still KL-only, no `[]` as the sole home state). |
+| Guest access | Anyone may browse nearby, place detail, and posts. Signing in (Google) is required only to submit a rating. |
+| Rating | Good/Bad on a **place**. Unique `(user_id, place_id)`. Locked after submit — a second vote is `409 VOTE_LOCKED`, never an update. |
+| Rating meter | `good_pct` is **null** below 5 total ratings on a place ("Baru — not enough ratings yet"); ratings never affect sort order. |
+| Trust proxy | `mention_count` = count of distinct creators with a non-self-interest, matched/ready post on the place. Replaces credibility scoring everywhere in MVP UI. |
+| Heat | A display-only hint computed per request, never stored: `high` if ≥ 2 non-self-interest posts in the last 14 days, `low` if the newest post is older than 30 days, else `medium`. |
+| Video | Never rehost. Store `post_url` + `thumbnail_url` only; render via the official Instagram embed, tap-to-load. |
+| Halal | `halal_status` is never inferred from captions or category. Default and common value is `unknown`, shown plainly — not treated as "not halal." |
+| Visit proof | Honor system. No verified-visit flag, no copy anywhere implying verification. |
+| Localisation | Distances in km, one decimal. Prices in RM via `price_band`. Areas (Bangsar, TTDI, …), not postcodes. |
 
 ---
 
@@ -77,550 +72,732 @@ It does **not** exist to scrape at request time, host TikTok/IG binaries, or ver
 
 | Role | Who | Can |
 |---|---|---|
-| `anon` | No token | Read places, posts, public creator profiles, nearby, leaderboard |
-| `user` | Signed-in diner | All anon + vote, follow, save, submit claim, report |
-| `creator` | User with `claim_status = verified` on a creator | All user + flag own posts `is_sponsored`, suggest place correction (ops still commits) |
-| `ops` | Internal | Seed, match review, claim approve/reject, takedown embed, hide post/place |
+| `anon` | No session | Read published places, their posts, and creator info surfaced on those posts. |
+| `authenticated` | Signed in via Google | All of `anon`, plus submit one rating per place, read their own rating. |
 
-**Creator cannot:** delete or alter community ratings; change `good_count` / credibility directly.
-
-**Rate limits (v1):**
-
-- Auth: 5 OTP requests / email / 15 min.
-- Vote: 30 / user / hour.
-- Nearby: 60 / IP / min (anon), 120 / user / min.
-- Ingest endpoints: `ops` only.
+`users.role` (`user` \| `ops`) is carried over from the broader spec for later ops tooling, but **no endpoint in this contract checks it** — there is no ops API in MVP. Content tables (`creators`, `platform_accounts`, `places`, `posts`) are writable only by the `service_role` key (Supabase table editor and any seed script use it), never by `anon` or `authenticated`.
 
 ---
 
-## 5. Invariants (must hold)
+## 5. Schema
 
-1. A `places` row in `published` state has a unique `provider_place_id` and a point **inside the KL polygon**.
-2. A `posts` row shown in API has `ingest_status = ready` and either `oembed_html` or `thumbnail_url` + `post_url`.
-3. At most one `user_ratings` row per `(user_id, place_id)` where `post_id IS NULL` (v1 place votes).
-4. `places.good_count + places.bad_count` equals the count of place-level ratings for that place.
-5. `creators.legit_count` / `hype_count` are derived (job or trigger), not client-supplied.
-6. No binary media owned by BiteMap except optional small avatars we host ourselves (not required for MVP — remote URLs OK).
-7. Precise lat/lng from the browser is a **query parameter**, not a stored trail. Optional store: `last_coarse_geohash` (precision ≤ 5) + `last_city = KL`.
+Load `supabase:supabase-postgres-best-practices` before changing any of this. Decisions made against it, specific to this schema:
+
+- **Primary keys are `text` slugs**, not `bigint identity` or `uuid`, on `creators`, `platform_accounts`, `places`, and `posts`. These four tables are hand-seeded via the Supabase table editor (`seed/PLAYBOOK.md`), and the existing `seed/*.csv` files already use human-readable slugs as `id` (`two-fold-coffee`, `nomnomswithta`, `post-DcgGW1BPP9j`). At hundreds of rows, index locality from a sequential PK doesn't matter; typing a real FK by hand without a lookup step does. `user_ratings` is written by the app at request time, not by hand, so it keeps a `bigint generated always as identity` surrogate key per the standard guidance. `users.id` mirrors `auth.users.id` (a Supabase-generated `uuid`) — not a free choice, Supabase Auth owns that column.
+- **Native Postgres `enum` types**, not `text` + `CHECK`, for every fixed-vocabulary column. The deciding factor here is the Supabase Studio table editor: a column typed as an `enum` renders as a dropdown when someone is hand-seeding a row; a `text` + `CHECK` column is a free-text field where the constraint only bites on save. Given seeding is 100% manual, the dropdown is worth the minor friction of `ALTER TYPE ... ADD VALUE` if a vocabulary grows.
+- **`timestamptz` everywhere**, no bare `timestamp`.
+- **RLS enabled on every table** (§6). No table is force-RLS'd, so the `service_role` key used for seeding and any future server-side job continues to bypass RLS as intended.
+- **A `place_cards` view derives counts** (`mention_count`, `good_count`, `bad_count`, `last_mentioned_at`, `heat`) from `posts` and `user_ratings` at query time. Nothing is stored as a denormalized counter — there is no counter-drift class of bug to worry about at this scale. It is declared `security_invoker = true` (§5.8/§6) — a view is meaningless as an RLS boundary without it, since it would otherwise run with its creator's privileges and ignore the policies below entirely.
+- **`good_count`/`bad_count` still go through a `SECURITY DEFINER` function** (`private.place_rating_counts`, §5.7.1), not a direct join, precisely *because* the view is `security_invoker = true`: a direct join to `user_ratings` would inherit the `user_ratings_select_own` policy and only ever see the caller's own vote (or nothing, for `anon`). The function returns just the two aggregates — never a row, never `user_id` — so counts stay public without widening row-level access to who voted what.
+- **No spatial index.** `distance_km` is computed with haversine over every published place per the constraint in the shared plan ("hundreds of rows"). A full scan of `places` per `/places/nearby` call is the right amount of engineering for that row count — do not add PostGIS or a bounding-box index preemptively.
+
+### 5.1 Enum types
+
+```sql
+create type platform_kind as enum ('instagram', 'tiktok', 'youtube', 'other');
+create type creator_content_type as enum ('venue_reviewer', 'recipe', 'travel', 'media_brand', 'photographer');
+create type halal_status as enum ('jakim_certified', 'muslim_owned', 'pork_free', 'non_halal', 'unknown');
+create type price_band as enum ('under_rm10', 'rm10_25', 'rm25_50', 'rm50_plus');
+create type photo_source as enum ('influencer_post', 'google_places', 'own', 'licensed');
+create type place_status as enum ('draft', 'published', 'hidden');
+create type operational_status as enum ('operational', 'closed_temporarily', 'closed_permanently', 'unknown');
+create type post_media_kind as enum ('reel', 'post');
+create type post_ingest_status as enum ('pending', 'needs_match', 'matched', 'ready', 'failed', 'excluded', 'takedown');
+create type rating_type as enum ('good', 'bad');
+create type user_role as enum ('user', 'ops');
+```
+
+`post_ingest_status` meanings: `pending` (just entered, unreviewed) → `needs_match` (no place match yet) → `matched` (place assigned) → `ready` (matched and reviewed fit to render) → `failed` (could not be resolved) / `excluded` (deliberately out of scope — sponsored, self-interest handled separately, personal, etc.; pair with `excluded_reason`) / `takedown` (was rendering, pulled). `/places/:id/posts` and the `place_cards` view both treat `matched` and `ready` as the renderable/countable set.
+
+### 5.2 `users`
+
+Mirrors `auth.users`; one row per Supabase-authenticated identity.
+
+```sql
+create table public.users (
+  id uuid primary key references auth.users (id) on delete cascade,
+  display_name text,
+  last_city text not null default 'KL',
+  role user_role not null default 'user',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+A trigger populates it on first Google sign-in (there is no `POST /users` endpoint — Supabase Auth owns account creation):
+
+```sql
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.users (id, display_name, last_city)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    'KL'
+  );
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+```
+
+### 5.3 `creators`
+
+```sql
+create table public.creators (
+  id text primary key,
+  display_name text not null,
+  bio text,
+  avatar_url text,          -- our Supabase Storage copy
+  avatar_source_url text,   -- original CDN URL, for provenance only
+  avatar_fetched_at timestamptz,
+  niche_tags text[],
+  maps_list_url text,       -- creator's public Google Maps place list, if any (link-in-bio) — seeding shortcut recorded at intake, not used by the UI
+  content_type creator_content_type,   -- nullable: set by ops at seed time, never inferred
+  is_operator boolean not null default false,
+  is_active boolean not null default true,
+  notes text,               -- internal seeding/ops notes, never rendered in the app
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+`is_operator` flags a creator who posts about their own venue (e.g. `@mingchuun` owns Gepuklah) — their posts are marked `is_self_interest` and excluded from `mention_count`, not deleted. `is_active` is an ops/seeding flag, **not a visibility gate**: it marks a creator ops should stop seeding new posts from (account deleted, brand deal fell through). Deactivating a creator does not hide their identity fields or their already-seeded posts — `posts_select_renderable` (§6) never checks `is_active`, so a deactivated creator's posts keep rendering with their embedded creator info intact, which is the whole point of "without losing their post history."
+
+### 5.4 `platform_accounts`
+
+```sql
+create table public.platform_accounts (
+  id text primary key,
+  creator_id text not null references public.creators (id) on delete cascade,
+  platform platform_kind not null,
+  handle text not null,   -- normalized lowercase, '@' stripped
+  external_id text,
+  follower_count integer,
+  profile_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint platform_accounts_platform_handle_key unique (platform, handle)
+);
+
+create index platform_accounts_creator_id_idx on public.platform_accounts (creator_id);
+```
+
+### 5.5 `places`
+
+```sql
+create table public.places (
+  id text primary key,
+  provider_place_id text,   -- Google Place ID; nullable — hawker stalls Google doesn't list stay null forever
+  name text not null,
+  name_aliases text[],
+  lat double precision,
+  lng double precision,
+  address text,
+  area text,                -- e.g. Bangsar, TTDI, Jalan Alor — a label, not a geo filter
+  category text,
+  halal_status halal_status not null default 'unknown',
+  price_band price_band,    -- nullable, never guessed
+  hours_note text,          -- free text, no hours schema
+  operational_status operational_status not null default 'operational',
+  photo_url text,           -- our Supabase Storage copy
+  photo_source photo_source,
+  photo_source_url text,    -- original CDN URL, for provenance only
+  photo_credit text,
+  photo_fetched_at timestamptz,
+  photo_visible boolean not null default true,   -- kill switch
+  status place_status not null default 'draft',  -- API only ever lists 'published'
+  notes text,               -- internal seeding/ops notes, never rendered in the app
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint places_published_has_coords check (
+    status <> 'published' or (lat is not null and lng is not null)
+  ),
+  constraint places_lat_range check (lat is null or lat between -90 and 90),
+  constraint places_lng_range check (lng is null or lng between -180 and 180)
+);
+
+create unique index places_provider_place_id_key on public.places (provider_place_id) where provider_place_id is not null;
+create index places_status_published_idx on public.places (status) where status = 'published';
+create index places_area_idx on public.places (area);
+```
+
+No `good_count`, `bad_count`, `total_mentions`, or `weighted_rank` columns — all four are derived in `place_cards` (§5.8), not stored, so there is nothing to keep in sync.
+
+### 5.6 `posts`
+
+```sql
+create table public.posts (
+  id text primary key,
+  creator_id text not null references public.creators (id),
+  platform_account_id text not null references public.platform_accounts (id),
+  place_id text references public.places (id),   -- nullable until matched
+  platform platform_kind not null,
+  post_url text not null,
+  thumbnail_url text,
+  media_kind post_media_kind not null,   -- 'reel' | 'post'
+  content_summary text,
+  is_sponsored boolean not null default false,
+  is_self_interest boolean not null default false,   -- excluded from mention_count regardless of ingest_status
+  posted_at timestamptz not null,
+  ingest_status post_ingest_status not null default 'pending',
+  excluded_reason text,   -- set when ingest_status = 'excluded'
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint posts_post_url_key unique (post_url)
+);
+
+create index posts_creator_id_idx on public.posts (creator_id);
+create index posts_platform_account_id_idx on public.posts (platform_account_id);
+create index posts_place_id_idx on public.posts (place_id);
+create index posts_place_renderable_idx on public.posts (place_id, posted_at desc)
+  where ingest_status in ('ready', 'matched') and is_self_interest = false;
+```
+
+No `oembed_html` / `oembed_fetched_at` — the FE builds the Instagram embed from `post_url` directly, tap-to-load, with no server-side refresh pipeline. No `sentiment_score` — that was LLM-ingest-only and LLM calls are out of MVP; `content_summary` (hand-written or copied from the caption at seed time) stays, it is what §5.9's post DTO renders as the pull-quote.
+
+### 5.7 `user_ratings`
+
+```sql
+create table public.user_ratings (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.users (id) on delete cascade,
+  place_id text not null references public.places (id) on delete cascade,
+  post_id text references public.posts (id),   -- reserved, nullable: see §7 Deferred
+  rating_type rating_type not null,
+  created_at timestamptz not null default now(),
+  constraint user_ratings_user_place_key unique (user_id, place_id)
+);
+
+create index user_ratings_place_id_idx on public.user_ratings (place_id);
+```
+
+No update or delete path — lock semantics mean the unique constraint is the only enforcement needed. A second `INSERT` for the same `(user_id, place_id)` raises Postgres error `23505`, which the route handler maps to `409 VOTE_LOCKED`.
+
+### 5.7.1 `place_rating_counts` (security definer)
+
+`place_cards` (§5.8) is `security_invoker = true`, so its own table reads run as the querying role — which is exactly right for `places` and `posts` (their `anon`/`authenticated` policies already allow the rows the view needs). It is **not** right for `user_ratings`: `user_ratings_select_own` (§6) only lets a user read their own row, by design — the whole point of the policy is that nobody, `anon` or another `authenticated` user, gets row-level access to who-voted-what.
+
+A broader select policy on `user_ratings` isn't a fix, because RLS is row-level, not column-level: any policy wide enough to let the view sum everyone's votes also lets a client `select user_id from user_ratings` directly and see who voted. Good/Bad counts need to be public; the rows behind them must not be. The one construct that gives both is a `SECURITY DEFINER` function that returns only the two aggregates, in a schema Supabase's API layer doesn't expose (so it isn't reachable as a direct RPC call, only from inside the view's own query):
+
+```sql
+create schema if not exists private;
+
+create or replace function private.place_rating_counts(p_place_id text)
+returns table (good_count bigint, bad_count bigint)
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select
+    count(*) filter (where rating_type = 'good'),
+    count(*) filter (where rating_type = 'bad')
+  from public.user_ratings
+  where place_id = p_place_id;
+$$;
+
+revoke all on function private.place_rating_counts(text) from public;
+grant execute on function private.place_rating_counts(text) to anon, authenticated;
+```
+
+`anon`/`authenticated` need `EXECUTE` because `place_cards` runs as the querying role and calls this function from inside its own query — a `SECURITY DEFINER` function's body always runs with its owner's privileges regardless of who's allowed to call it, so granting `EXECUTE` here does not reopen row-level access; it only lets the caller ask "how many good/bad on this place," never "whose."
+
+### 5.8 `place_cards` view
+
+```sql
+create view public.place_cards
+with (security_invoker = true)
+as
+select
+  p.id,
+  p.name,
+  p.lat,
+  p.lng,
+  p.area,
+  p.category,
+  p.halal_status,
+  p.price_band,
+  p.status,
+  p.address,
+  p.name_aliases,
+  p.hours_note,
+  p.provider_place_id,
+  case when p.photo_visible then p.photo_url end as photo_url,
+  case when p.photo_visible then p.photo_credit end as photo_credit,
+  coalesce(mentions.mention_count, 0) as mention_count,
+  mentions.last_mentioned_at,
+  coalesce(ratings.good_count, 0) as good_count,
+  coalesce(ratings.bad_count, 0) as bad_count,
+  case
+    when coalesce(mentions.recent_count_14d, 0) >= 2 then 'high'
+    when mentions.last_mentioned_at is null
+      or mentions.last_mentioned_at < now() - interval '30 days' then 'low'
+    else 'medium'
+  end as heat,
+  latest.handle as latest_mention_handle,
+  latest.quote as latest_mention_quote
+from public.places p
+left join lateral (
+  select
+    count(distinct po.creator_id) as mention_count,
+    max(po.posted_at) as last_mentioned_at,
+    count(*) filter (where po.posted_at >= now() - interval '14 days') as recent_count_14d
+  from public.posts po
+  where po.place_id = p.id
+    and po.is_self_interest = false
+    and po.ingest_status in ('ready', 'matched')
+) mentions on true
+left join lateral private.place_rating_counts(p.id) as ratings (good_count, bad_count) on true
+left join lateral (
+  select pa.handle, po.content_summary as quote
+  from public.posts po
+  join public.platform_accounts pa on pa.id = po.platform_account_id
+  where po.place_id = p.id
+    and po.is_self_interest = false
+    and po.ingest_status in ('ready', 'matched')
+  order by po.posted_at desc
+  limit 1
+) latest on true;
+```
+
+`good_pct` is **not** in the view — it depends on the ≥5-rating display rule (§8), which the route handler applies after reading `good_count`/`bad_count` so the null-under-5 threshold lives in one place (application code), not duplicated in SQL.
+
+`good_count`/`bad_count` come from `private.place_rating_counts` (§5.7.1), not a direct join to `user_ratings` — see §6 for why the view being `security_invoker = true` makes that necessary rather than optional.
+
+`photo_visible` is enforced **inside the view**, not by any endpoint: `photo_url`/`photo_credit` come back `null` whenever `places.photo_visible = false`. This is the one and only place that gate is applied — no DTO or route handler needs its own check, and none should add one (a second check would be redundant at best, and could silently disagree with the view at worst).
+
+The column is `places.photo_url`; the JSON field is `thumbnail_url` on the nearby/place item DTO (§8.2, §8.3) — the view keeps the column's real name, and the route handler is what renames `photo_url` → `thumbnail_url` when assembling that DTO, to match the FE's existing field name for card thumbnails. `GET /places/:id` (§8.3) additionally echoes the same value back under its own real column name, `photo_url` — that's the identical asset under two field names for two render contexts (list-card thumbnail vs. full-detail hero image), not two different photos; there is only one photo per place in MVP.
 
 ---
 
-## 6. Business logic
+## 6. Row-level security
 
-### 6.1 Geography
+Every table has RLS enabled. There are no `FORCE ROW LEVEL SECURITY` statements, so `service_role` (Supabase table editor, any seed script) continues to read and write everything — that is the intended path for all content writes in MVP.
 
-**KL bounding box (v1, replace with official polygon when available):**
+**`place_cards` (§5.8) is declared `security_invoker = true`** (Postgres 15+, which Supabase runs). Without it, a view created by a migration/admin role executes with that role's privileges regardless of who queries it — silently bypassing every RLS policy below and returning draft/hidden places and non-renderable posts to `anon`. `security_invoker = true` makes the view evaluate RLS on `places` and `posts` as the querying role (`anon` or `authenticated`), exactly as if those tables were queried directly — and for those two tables that's sufficient, because `places_select_published` and `posts_select_renderable` below already grant `anon`/`authenticated` exactly the rows the view needs. The endpoint SQL in §8 still filters `where pc.status = 'published'` on top of that — defense in depth, not a substitute for it.
 
-```
-south: 2.90   north: 3.30
-west:  101.50 east:  101.90
-```
+**It is deliberately *not* sufficient for `user_ratings`.** Under `security_invoker = true`, a direct join from the view to `user_ratings` would also run as the querying role — and `user_ratings_select_own` below only lets a user read their *own* row. `anon` would see zero rows and `authenticated` would see only their own vote, so `good_count`/`bad_count` would silently read as 0-or-1 instead of the place's real totals for everyone except (at most) the caller. Widening `user_ratings_select_own` isn't a fix: RLS is row-level, and any policy broad enough to let the view sum every user's vote is also broad enough to let a client `select user_id from user_ratings` and see who voted on what — a real privacy leak, not a hypothetical one. Counts need to be public; the rows behind them must not be. `place_cards` resolves this by calling `private.place_rating_counts` (§5.7.1), a `SECURITY DEFINER` function that returns only the two aggregates and is never granted to `anon`/`authenticated` as a direct table read — it is the one intentional exception to "the view runs as the querying role," scoped as narrowly as the two integers it returns.
 
-- `GET /places/nearby`: if request lat/lng outside box, ignore coords and use **KL centroid** `(3.1390, 101.6869)` plus city-wide trending.
-- Always filter `ST_Within(location, kl_polygon)`.
-- `distance_km` = `ST_DistanceSphere(place, user_point) / 1000`.
-- Walk minutes: client-side or `round(distance_km / 0.08)` (≈ 12 min / km). Not a routing engine in MVP.
+```sql
+alter table public.users enable row level security;
+alter table public.creators enable row level security;
+alter table public.platform_accounts enable row level security;
+alter table public.places enable row level security;
+alter table public.posts enable row level security;
+alter table public.user_ratings enable row level security;
 
-**Areas (labels, not geo filters unless ops maps them):** Chow Kit, Kampung Baru, Bukit Bintang, Bangsar, Cheras, Pudu, Chinatown, KLCC, TTDI, Brickfields, Jalan Alor, etc.
+-- users: read/update own row only. Insert happens via the handle_new_user trigger (security definer), never via a client role.
+create policy users_select_own on public.users
+  for select to authenticated
+  using ((select auth.uid()) = id);
 
-### 6.2 Scoring
+create policy users_update_own on public.users
+  for update to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
 
-#### Place `good_pct`
+-- creators: public read of all creators. is_active is an ops/seeding flag, not a
+-- visibility gate (§5.3) — a deactivated creator's identity fields stay visible
+-- because their posts (via posts_select_renderable, which never checks
+-- is_active) keep rendering with embedded creator info. Internal columns
+-- (notes) are kept out of anon/authenticated's reach by column-level
+-- privileges below, not by this policy, since RLS is row-level only.
+create policy creators_select_all on public.creators
+  for select to anon, authenticated
+  using (true);
 
-```
-if good_count + bad_count == 0:
-  good_pct = null   # UI shows “No ratings yet”
-else:
-  good_pct = round(100 * good_count / (good_count + bad_count))
-```
+-- platform_accounts: public read (no PII beyond a public handle).
+create policy platform_accounts_select_all on public.platform_accounts
+  for select to anon, authenticated
+  using (true);
 
-#### Place `weighted_rank` (nearby / trending)
+-- places: public read of published places only.
+create policy places_select_published on public.places
+  for select to anon, authenticated
+  using (status = 'published');
 
-Compute at query time or refresh every 5–15 min per geohash:
+-- posts: public read of renderable, non-self-interest posts on a published place.
+create policy posts_select_renderable on public.posts
+  for select to anon, authenticated
+  using (
+    ingest_status in ('ready', 'matched')
+    and is_self_interest = false
+    and exists (
+      select 1 from public.places pl
+      where pl.id = posts.place_id and pl.status = 'published'
+    )
+  );
 
-```
-recency_score = Σ for each ready post on place:
-  exp(-age_days / HALF_LIFE_DAYS)
+-- user_ratings: a signed-in user can read and insert only their own row. No update/delete policy — lock semantics.
+create policy user_ratings_select_own on public.user_ratings
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
 
-mention_score = count of ready posts with timestamp >= now() - 30 days
-
-trust_boost = average(creator.display_credibility) of those posts
-              (1.0 if no scored creators)
-
-distance_decay = exp(-distance_km / 3.0)     # nearby only; = 1 for city trending
-
-weighted_rank = mention_score * recency_score * trust_boost * distance_decay
-```
-
-**v1 constants (tunable, store in config, not magic in five files):**
-
-| Constant | Value | Notes |
-|---|---|---|
-| `HALF_LIFE_DAYS` | `14` | Mentions older than ~30d barely count |
-| `NEARBY_RADIUS_KM` | `5` | |
-| `MIN_PLACES_BEFORE_FALLBACK` | `3` | Else KL trending |
-| `CREATOR_VOTE_FLOOR` | `10` | Place-votes on their mentioned places |
-| `TRUSTED_BADGE_FLOOR` | `25` | And `display_credibility >= 0.7` |
-| `HIGH_TRUST_FILTER_MIN_CREATORS` | `15` | Hide UI filter until then |
-
-**Heat bucket** (map pin color only):
-
-| Heat | Condition |
-|---|---|
-| `high` (chili) | `weighted_rank` in top 20% of the result set **or** ≥ 3 posts in 7 days |
-| `medium` (mango) | default |
-| `low` (lime) | 1 mention, older than 14 days |
-
-Heat is **relative to the current result set**, not a global stored enum (may cache on the DTO).
-
-#### Creator `display_credibility`
-
-```
-community_ratio = legit_count / (legit_count + hype_count)   # if total > 0
-
-if (legit_count + hype_count) >= CREATOR_VOTE_FLOOR:
-  display_credibility = community_ratio
-  use_seed = false
-else:
-  display_credibility = seed_credibility   # hand-set 0–1
-  use_seed = true
+create policy user_ratings_insert_own on public.user_ratings
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
 ```
 
-**Roll-up job (after each rating, or async):**
+`user_ratings_select_own` is not explicitly called for in the plan header but is required for `GET /places/:id/ratings/me` and the `my_vote` field to work under the anon/authenticated key rather than falling back to `service_role` for a per-user read — noted here as the one addition beyond the brief's literal "insert own" line.
 
-- For each creator with a `posts.place_id = rated place`:
-  - Count distinct users’ Good on that place as +legit, Bad as +hype  
-  - **v1 simplification:** each place-vote counts once per creator who mentioned that place (not once per post).
+`creators`/`platform_accounts`/`places`/`posts` have no insert/update/delete policy for `anon` or `authenticated` — RLS default-denies those, which is exactly "writable only via service role."
 
-Leaderboard sort: `display_credibility DESC`, tie-break `legit_count DESC`, then `updated_at`. **Not** followers.
+**Column-level privileges on `creators` and `places`.** RLS is row-level only — `creators_select_all` and `places_select_published` above decide which *rows* `anon`/`authenticated` can see, but every column on an allowed row is visible to a plain `select *` regardless of what the policy's `using` clause says. Both tables carry a `notes` column documented as "internal seeding/ops notes, never rendered in the app" (§5.3, §5.5); nothing in the policies above keeps it out of a client's hands. Column-level `GRANT`s close that gap — they run in addition to RLS, narrowing the column set a role's own privileges cover, independent of which rows a policy admits:
 
-### 6.3 Voting
+```sql
+revoke select on public.creators from anon, authenticated;
+grant select (
+  id, display_name, bio, avatar_url, avatar_source_url, avatar_fetched_at,
+  niche_tags, maps_list_url, content_type, is_operator, is_active,
+  created_at, updated_at
+) on public.creators to anon, authenticated;
 
-1. User must be authenticated.
-2. Place must be `published` and not `hidden`.
-3. If a row exists for `(user_id, place_id)` → `409 VOTE_LOCKED`.
-4. Insert `user_ratings` with `rating_type`, `place_id`, `post_id = null`, `creator_id = null` (or first mentioning creator — optional denorm).
-5. Increment place counters in the **same transaction**.
-6. Enqueue `recompute_creator_scores` for creators linked via posts.
-7. Response includes new `good_pct` and `{ already_voted: true, my_vote }`.
+revoke select on public.places from anon, authenticated;
+grant select (
+  id, provider_place_id, name, name_aliases, lat, lng, address, area,
+  category, halal_status, price_band, hours_note, operational_status,
+  photo_url, photo_source, photo_source_url, photo_credit, photo_fetched_at,
+  photo_visible, status, created_at, updated_at
+) on public.places to anon, authenticated;
+```
 
-Idempotency: `Idempotency-Key` header optional; unique constraint is the source of truth.
-
-### 6.4 Mentions / posts
-
-- A post is visible if `ingest_status = ready` and `place_id IS NOT NULL` and not `takedown`.
-- Place page: posts ordered by `posted_at DESC`, cap 20, paginate.
-- Preview: latest post’s `thumbnail_url` + `content_summary` or first 140 chars + handle.
-- If oEmbed fetch fails at ingest: still `ready` if `thumbnail_url` + `post_url` exist. Client shows thumb + “Open original.”
-- Takedown: set `takedown = true`, null out `oembed_html`. Keep URL if legally OK for ops audit.
-
-### 6.5 Place matching (ingest)
-
-1. Ops or job submits `post_url` + optional hinted name.
-2. Fetch oEmbed (TikTok/IG official). Persist HTML + thumbnail URL. **Do not** save video bytes.
-3. LLM (optional) proposes `{ name, area, confidence }` from caption — **does not write `place_id`.**
-4. Lookup Places API; attach `provider_place_id` if confidence ≥ `0.85` **and** result inside KL.
-5. Else `ingest_status = needs_match` for ops queue.
-6. Duplicate `provider_place_id` → reuse existing `places` row.
-
-### 6.6 Follow
-
-- `PUT /me/following/:creatorId` upsert. `DELETE` removes.
-- Skip onboarding = empty follows. **Nearby pins + Nearby list do not require follows.**
-- Map home has two list modes on the same `/places/nearby` route:
-  - **Nearby** (`followed=0`, default): all ready mentions in radius (or KL trending fallback). Powers **pins** and the Nearby picks list. `sort=rank|distance|recent`.
-  - **Following** (`followed=1`): places that have ≥1 ready `post` from a creator in `follows` for the authed user. **Trending** = `sort=rank` (same `weighted_rank`, `distance_decay` still applies). **New** = `sort=recent` (`MAX(posts.posted_at)` DESC among followed creators’ posts on that place).
-- `followed=1` without auth, or with an empty follow set → `{ items: [], fallback: "none", empty_reason: "no_follows" }`. **Do not** fall back to KL trending.
-- `followed=1` with follows but no matching places → `{ items: [], fallback: "none", empty_reason: "no_followed_mentions" }`.
-- Optional later boost on default Nearby: `trust_boost *= 1.15` if a mention is from a followed creator (does **not** hide unfollowed mentions).
-
-### 6.7 Saves
-
-- `list`: `want` | `been`. Default `want`.
-- Unique `(user_id, place_id)`.
-- Optional for v1; frontend already calls localStorage.
-
-### 6.8 Claims
-
-1. `POST /creators/:id/claims` with `proof_note` (URL or text). Status `pending`. Creator `claim_status → pending`.
-2. Only one open pending claim per creator.
-3. Ops `POST /ops/claims/:id/review` `{ decision: approved|rejected, note }`.
-4. Approved: `claimed_by_user_id = user`, `claim_status = verified`.
-5. User may only have one verified creator claim.
-
-### 6.9 Reports
-
-`POST /reports` `{ target_type, target_id, reason }`.  
-Reasons: `wrong_place` | `closed` | `spam` | `not_food` | `impersonation` | `unlabeled_sponsored`.  
-Ops triage. No public listing.
-
-### 6.10 Auth
-
-- `POST /v1/auth/otp/request` `{ email }` → send 6-digit or magic link (provider TBD).
-- `POST /v1/auth/otp/verify` `{ email, code }` → `{ access_token, refresh_token, user }`.
-- `GET /v1/auth/google` / callback.
-- `POST /v1/auth/refresh` · `POST /v1/auth/logout` (revoke refresh family).
-- Create `users` on first success. `role = user`, `last_city = KL`.
+Both lists are every column on the table except `notes`. This also closes a second gap beyond the `place_cards`/`posts` DTOs (which already hand-pick their own output columns and were never going to leak `notes`): without the revoke/grant, a client holding an anon/authenticated Supabase key could `select notes from creators` (or `places`) directly over PostgREST and read ops notes nothing in the API surface intends to expose.
 
 ---
 
-## 7. Data model
+## 7. Deferred (cut, not deleted)
 
-**Conventions:** UUID v4 PKs. `timestamptz` everywhere. Soft-delete via `deleted_at` where noted. All public reads exclude `deleted_at IS NOT NULL`.
-
-### 7.1 ER overview
-
-```
-users 1──N user_ratings N──1 places
-users 1──N follows N──1 creators
-users 1──N saves N──1 places
-users 1──1? creators          (via claimed_by_user_id)
-creators 1──N platform_accounts
-creators 1──N posts N──1 places
-creators 1──N claim_requests N──1 users
-posts 1──N user_ratings       (nullable, v2)
-```
-
-### 7.2 `users`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `email` | citext | UNIQUE, NULL | Null if Google-only until linked |
-| `google_sub` | text | UNIQUE, NULL | |
-| `display_name` | text | | Default from email prefix / Google |
-| `avatar_url` | text | NULL | Remote URL |
-| `role` | text | CHECK `user\|ops` | Default `user` |
-| `last_city` | text | | Default `KL` |
-| `last_coarse_geohash` | text | NULL | Precision ≤ 5 |
-| `created_at` | timestamptz | NOT NULL | Vote-weight later |
-| `updated_at` | timestamptz | NOT NULL | |
-
-### 7.3 `creators`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | Person, not a handle |
-| `display_name` | text | NOT NULL | |
-| `bio` | text | NULL | |
-| `avatar_url` | text | NULL | |
-| `cover_url` | text | NULL | |
-| `niche_tags` | text[] | | e.g. `{mamak,street-food}` |
-| `seed_credibility` | numeric(4,3) | 0–1 | Hand-score |
-| `seed_score_notes` | text | NULL | Ops rationale |
-| `legit_count` | int | ≥ 0 | Derived |
-| `hype_count` | int | ≥ 0 | Derived |
-| `credibility_score` | numeric(4,3) | NULL | Cached `display_credibility` |
-| `use_seed` | bool | | Cached |
-| `claim_status` | text | `unclaimed\|pending\|verified\|rejected` | |
-| `claimed_by_user_id` | uuid | FK users, NULL, UNIQUE | One creator per user |
-| `recommended` | bool | | Show in onboarding |
-| `created_at` / `updated_at` | timestamptz | | |
-
-### 7.4 `platform_accounts`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `creator_id` | uuid | FK creators ON DELETE CASCADE | |
-| `platform` | text | `tiktok\|instagram\|youtube\|other` | |
-| `handle` | text | NOT NULL | With or without `@` — normalize lowercase, strip `@` |
-| `external_id` | text | NULL | |
-| `follower_count` | int | NULL | Cache only |
-| `profile_url` | text | NULL | |
-| UNIQUE | `(platform, handle)` | | |
-
-### 7.5 `places`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `provider` | text | `google\|mapbox` | |
-| `provider_place_id` | text | UNIQUE | Source of truth |
-| `name` | text | NOT NULL | |
-| `location` | geography(Point,4326) | NOT NULL | GiST index |
-| `address` | text | NULL | |
-| `area` | text | NULL | Neighborhood label |
-| `category` | text | NULL | |
-| `halal` | bool | NULL | Unknown ≠ false in filters (`IS TRUE`) |
-| `price_level` | int | NULL 0–4 | From Places |
-| `hours_json` | jsonb | NULL | Cached weekday hours |
-| `hours_updated_at` | timestamptz | NULL | |
-| `operational_status` | text | `operational\|closed_temporarily\|closed_permanently\|unknown` | |
-| `blurb` | text | NULL | Editorial / LLM summary, cached |
-| `status` | text | `draft\|published\|hidden` | API lists `published` only |
-| `good_count` | int | ≥ 0 default 0 | |
-| `bad_count` | int | ≥ 0 default 0 | |
-| `total_mentions` | int | ≥ 0 | Denorm ready posts |
-| `weighted_rank` | numeric | NULL | Optional cache |
-| `created_at` / `updated_at` | timestamptz | | |
-
-**Indexes:** GiST(`location`); `(status, operational_status)`; `area`.
-
-### 7.6 `posts`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `creator_id` | uuid | FK creators | |
-| `platform_account_id` | uuid | FK platform_accounts | |
-| `place_id` | uuid | FK places, NULL | Until matched |
-| `platform` | text | | |
-| `post_url` | text | UNIQUE | Canonical |
-| `oembed_html` | text | NULL | Cached |
-| `oembed_fetched_at` | timestamptz | NULL | |
-| `thumbnail_url` | text | NULL | Remote |
-| `content_summary` | text | NULL | Ingest LLM |
-| `sentiment_score` | numeric | NULL | Ingest only |
-| `quote` | text | NULL | Short pull-quote for cards |
-| `is_sponsored` | bool | default false | |
-| `posted_at` | timestamptz | NOT NULL | Original |
-| `ingest_status` | text | `pending\|needs_match\|ready\|failed\|takedown` | |
-| `takedown` | bool | default false | |
-| `created_at` / `updated_at` | timestamptz | | |
-
-**Indexes:** `(place_id, posted_at DESC)` where ready; `(creator_id, posted_at DESC)`.
-
-### 7.7 `user_ratings`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `user_id` | uuid | FK users | |
-| `place_id` | uuid | FK places | Required v1 |
-| `post_id` | uuid | FK posts, NULL | v2 tip-level |
-| `creator_id` | uuid | FK creators, NULL | Optional denorm |
-| `rating_type` | text | `good\|bad` | |
-| `created_at` | timestamptz | NOT NULL | |
-
-**UNIQUE** `(user_id, place_id)` WHERE `post_id IS NULL`.  
-**UNIQUE** `(user_id, post_id)` WHERE `post_id IS NOT NULL` (future).
-
-### 7.8 `follows`
-
-| Column | Type | Constraints |
+| Feature | Cut from MVP because | Schema hook that keeps it cheap later |
 |---|---|---|
-| `user_id` | uuid | PK part, FK users |
-| `creator_id` | uuid | PK part, FK creators |
-| `created_at` | timestamptz | |
-
-### 7.9 `saves`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `user_id` | uuid | PK part | |
-| `place_id` | uuid | PK part | |
-| `list` | text | `want\|been` | Default `want` |
-| `created_at` | timestamptz | | |
-
-### 7.10 `claim_requests`
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | uuid | PK | |
-| `creator_id` | uuid | FK | |
-| `user_id` | uuid | FK | |
-| `proof_note` | text | NOT NULL | |
-| `status` | text | `pending\|approved\|rejected` | |
-| `reviewed_by` | uuid | FK users, NULL | |
-| `reviewed_at` | timestamptz | NULL | |
-| `review_note` | text | NULL | |
-
-Partial unique: one `pending` row per `creator_id`.
-
-### 7.11 `reports`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | uuid | |
-| `user_id` | uuid | FK |
-| `target_type` | text | `place\|post\|creator` |
-| `target_id` | uuid | |
-| `reason` | text | enum above |
-| `status` | text | `open\|actioned\|dismissed` |
-| `created_at` | timestamptz | |
-
-### 7.12 `ingest_jobs`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | uuid | |
-| `kind` | text | `oembed\|places_refresh\|llm_extract` |
-| `payload` | jsonb | url / handle / place_id |
-| `status` | text | `queued\|running\|ok\|error` |
-| `last_error` | text | |
-| `created_at` / `finished_at` | timestamptz | |
-
-### 7.13 Config / reference
-
-`app_config` key-value for half-life, floors, KL polygon WKT.  
-Optional `rank_snapshots (id, kind, payload jsonb, created_at)` for weekly leaderboard debug.
+| Follows | Personalization boost, not core loop | Re-add `follows (user_id, creator_id, created_at)`, no columns elsewhere depend on it. |
+| Saves (server-side) | FE already has `localStorage`; no server round-trip needed | Re-add `saves (user_id, place_id, list, created_at)` when a synced saves list ships. |
+| Claims | Needs a review UI, which is itself out (no ops API) | Re-add `claim_requests` table and `creators.claim_status` / `claimed_by_user_id` columns together. |
+| Reports | Needs triage, which is itself out | Re-add `reports (user_id, target_type, target_id, reason, status, created_at)`. |
+| Credibility scoring / leaderboard | UI shows `mention_count` instead | Re-add `creators.legit_count` / `hype_count` / `credibility_score` / `seed_credibility` / `use_seed`. `user_ratings.post_id` is already nullable in this schema — the one hook this needs that would otherwise be a migration — so post-level Legit/Hype votes (§9 of `SPEC.md`) slot in without touching existing rows. |
+| oEmbed refresh pipeline / background jobs | No Redis, no job runner in MVP | None needed: FE renders the embed from `post_url` directly each time, no cache to refresh. |
+| Ops endpoints / admin UI | Seeding via Supabase table editor instead | `places.status`, `posts.ingest_status`, `posts.excluded_reason`, `places.photo_visible` are the gating columns an ops UI would drive — they already exist, so adding the UI later needs no schema change. |
+| PostGIS | Hundreds of rows; haversine in SQL is enough | `places.lat`/`lng` as plain doubles generalize to a `geography(Point,4326)` column later (add column, backfill from lat/lng, swap the query) without a breaking migration. |
+| Multi-city | KL-only in MVP | `users.last_city` and `places.area` are already free text; a real multi-city launch would add a `city` column and a bounding-box lookup table, not touch these. |
 
 ---
 
-## 8. API requirements
+## 8. Endpoints
 
-Base: `/v1`. JSON. Errors:
+Base path: none (no `/v1` prefix — matches `frontend/BACKEND.md` paths exactly). All responses `application/json`. Auth via the Supabase session (Bearer JWT from the Supabase JS client); there are no custom `/auth/*` routes on this API — Google sign-in is entirely handled by the Supabase client SDK.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/places/nearby` | optional | Map pins + list, one query. |
+| GET | `/places/:id` | optional | Place detail. |
+| GET | `/places/:id/posts` | optional | Instagram mentions, newest first. |
+| POST | `/places/:id/ratings` | required | Submit Good/Bad, locked after first vote. |
+| GET | `/places/:id/ratings/me` | required | The caller's own rating on this place, if any. |
+| GET | `/me` | required | Current user + role. |
+
+Timestamps in all JSON below are ISO 8601 (`2026-08-26T09:12:00+08:00`); `DD/MM/YYYY` is a **display** rule for the FE (per `SPEC.md`), not the wire format.
+
+### 8.1 Error shape
 
 ```json
 { "error": { "code": "VOTE_LOCKED", "message": "You already rated this place." } }
 ```
 
-| HTTP | When |
-|---|---|
-| 400 | Validation |
-| 401 | Missing/invalid token |
-| 403 | Authenticated but not allowed |
-| 404 | Unknown id or not published |
-| 409 | Vote locked, duplicate claim |
-| 429 | Rate limit |
+| HTTP | Code | When |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Missing/invalid `lat`/`lng`, invalid `type` body on a rating, etc. |
+| 401 | `UNAUTHENTICATED` | No/invalid Supabase session on an auth-required route. |
+| 404 | `PLACE_NOT_FOUND` | Unknown `:id`, or the place is `draft`/`hidden`. |
+| 404 | `RATING_NOT_FOUND` | `GET /places/:id/ratings/me` when the caller hasn't rated this place. |
+| 409 | `VOTE_LOCKED` | Second `POST /places/:id/ratings` for the same `(user, place)`. |
 
-### 8.1 Auth & me
+### 8.2 `GET /places/nearby`
 
-| Method | Path | Auth | Request | Response |
-|---|---|---|---|---|
-| POST | `/auth/otp/request` | no | `{ email }` | `{ ok: true }` |
-| POST | `/auth/otp/verify` | no | `{ email, code }` | tokens + user |
-| GET | `/auth/google` | no | | redirect |
-| POST | `/auth/refresh` | refresh | `{ refresh_token }` | tokens |
-| POST | `/auth/logout` | yes | | `{ ok: true }` |
-| GET | `/me` | yes | | user + `role` |
-| PATCH | `/me` | yes | `{ display_name?, last_coarse_geohash? }` | user |
-| GET | `/me/stats` | yes | | `{ ratings_count, saves_count, following_count }` |
+**Query:** `lat` (float), `lng` (float), `radius_km` (float, default `5`, FE always sends `5`).
 
-### 8.2 Places
+**Logic:**
 
-| Method | Path | Auth | Query / body | Response highlights |
-|---|---|---|---|---|
-| GET | `/places/nearby` | no | `lat, lng, radius_km=5, q, halal, category, sort=rank\|distance\|recent, followed=0\|1, cursor` | `{ items[], fallback: "radius"\|"kl_trending"\|"none", empty_reason?, next_cursor }` · `q` is **fuzzy** (name/area). `followed=1` is the Map **Following** tab (auth; see §6.6) |
-| GET | `/places/:id` | no | | place DTO + `good_pct`, `my_vote` if authed |
-| GET | `/places/:id/preview` | no | | compact card DTO |
-| GET | `/places/:id/posts` | no | `cursor, hide_sponsored` | posts DTO |
-| POST | `/places/:id/ratings` | **yes** | `{ type: "good"\|"bad" }` | `{ good_pct, my_vote }` |
-| GET | `/places/:id/ratings/me` | yes | | `{ type }` or 404 |
-| PUT | `/me/saves/:placeId` | yes | `{ list?: "want"\|"been" }` | |
-| DELETE | `/me/saves/:placeId` | yes | | |
+1. If `(lat, lng)` is outside the KL bounding box, ignore it and use the KL centroid `(3.1390, 101.6869)` instead.
+2. Haversine distance against `place_cards` (§5.8), published places only:
 
-**Nearby item DTO:**
+   ```sql
+   with candidates as (
+     select
+       pc.*,
+       round(
+         (6371 * acos(
+           cos(radians($1)) * cos(radians(pc.lat)) * cos(radians(pc.lng) - radians($2))
+           + sin(radians($1)) * sin(radians(pc.lat))
+         ))::numeric, 1
+       ) as distance_km
+     from public.place_cards pc
+     where pc.status = 'published' and pc.lat is not null
+   )
+   select * from candidates
+   where distance_km <= $3
+   order by distance_km asc, mention_count desc
+   limit 50;
+   ```
+3. If fewer than 3 rows come back, re-run the same query with `radius_km = 65` (city-wide "trending") and set `fallback: "kl_trending"`. Otherwise `fallback: null`. 65 km comfortably exceeds the KL bounding box's own diagonal — south `2.90`/north `3.30` by west `101.50`/east `101.90` spans roughly 44 km north-south and 44 km east-west at this latitude, for a corner-to-corner diagonal of ~63 km — so a 65 km radius from any point inside the box covers the whole box.
+4. `good_pct`: null if `good_count + bad_count < 5`, else `round(100 * good_count / (good_count + bad_count))`.
+5. `thumbnail_url` in the item DTO below is `place_cards.photo_url` (see §5.8/§6) — already `null` when the place's `photo_visible = false`, no extra check needed here.
+6. `last_mentioned_at` passes through from `place_cards` (§5.8) so the FE's list sheet can offer a client-side "Recent" sort. The server itself never sorts by it — response order is always `distance_km ASC, mention_count DESC` — and there is no `sort=` query param. Search, halal, and category filters are likewise client-side over the returned `items`, never query params.
+
+**Request:**
 
 ```
-id, name, lat, lng, area, category, halal, distance_km,
-good_pct, good_count, bad_count, heat, mention, thumbnail_url
-mention: { handle, quote, creator_id } | null
+GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
 ```
 
-**Place DTO:** nearby fields + `address, hours, price_level, blurb, operational_status, provider_place_id` (for Maps URL).
+**Response `200`:**
 
-**Post DTO:** `id, platform, post_url, thumbnail_url, oembed_html, quote, posted_at, is_sponsored, creator { id, handle, avatar_url, display_credibility }`.
+```json
+{
+  "items": [
+    {
+      "id": "since-then",
+      "name": "Since Then",
+      "lat": 3.1291,
+      "lng": 101.6779,
+      "area": "Bangsar",
+      "category": "Thai",
+      "halal_status": "unknown",
+      "price_band": "rm25_50",
+      "distance_km": 0.4,
+      "heat": "high",
+      "good_count": 18,
+      "bad_count": 2,
+      "good_pct": 90,
+      "mention_count": 3,
+      "last_mentioned_at": "2026-08-21T00:00:00+08:00",
+      "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/since-then.jpg",
+      "latest_mention": { "handle": "@nomnomswithta", "quote": "Tom yum is the must-order. Comfort repeat." }
+    },
+    {
+      "id": "gepuklah-by-mingchuun",
+      "name": "Gepuklah By Mingchuun",
+      "lat": 3.1370,
+      "lng": 101.6180,
+      "area": "Damansara Jaya",
+      "category": "Indonesian",
+      "halal_status": "unknown",
+      "price_band": "under_rm10",
+      "distance_km": 3.9,
+      "heat": "medium",
+      "good_count": 5,
+      "bad_count": 4,
+      "good_pct": 56,
+      "mention_count": 2,
+      "last_mentioned_at": "2026-08-14T00:00:00+08:00",
+      "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/gepuklah.jpg",
+      "latest_mention": { "handle": "@nomnomswithta", "quote": "Mixed verdict: worth trying, not worth the queue." }
+    },
+    {
+      "id": "two-fold-coffee",
+      "name": "Two Fold Coffee",
+      "lat": 3.0930,
+      "lng": 101.5860,
+      "area": "Kelana Jaya",
+      "category": "Cafe",
+      "halal_status": "muslim_owned",
+      "price_band": "under_rm10",
+      "distance_km": 4.8,
+      "heat": "low",
+      "good_count": 6,
+      "bad_count": 1,
+      "good_pct": 86,
+      "mention_count": 1,
+      "last_mentioned_at": "2026-07-30T00:00:00+08:00",
+      "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/two-fold-coffee.jpg",
+      "latest_mention": { "handle": "@nomnomswithta", "quote": "Shio pan; eat hot. Repeat visitor, near home." }
+    }
+  ],
+  "fallback": null
+}
+```
 
-### 8.3 Creators
+**Thin-data example** (< 3 places within 5 km, or an out-of-KL query):
 
-| Method | Path | Auth | Notes |
-|---|---|---|---|
-| GET | `/creators` | no | `q, recommended, cursor` |
-| GET | `/creators/leaderboard` | no | KL, trust order, `limit=50` |
-| GET | `/creators/:id` | no | + `following` if authed |
-| GET | `/creators/:id/places` | no | Distinct places via posts |
-| PUT | `/me/following/:creatorId` | yes | |
-| DELETE | `/me/following/:creatorId` | yes | |
-| POST | `/creators/:id/claims` | yes | `{ proof_note }` |
+```json
+{
+  "items": [ /* KL-wide, same item shape, ordered distance-from-centroid ASC then mention_count DESC */ ],
+  "fallback": "kl_trending"
+}
+```
 
-### 8.4 Ops (role `ops`)
+### 8.3 `GET /places/:id`
 
-| Method | Path | Notes |
-|---|---|---|
-| POST | `/ops/ingest/posts` | `{ post_url, creator_id?, place_id? }` |
-| GET | `/ops/ingest/queue` | `needs_match` |
-| POST | `/ops/places/match` | `{ post_id, provider_place_id }` |
-| POST | `/ops/claims/:id/review` | `{ decision, note }` |
-| POST | `/ops/posts/:id/takedown` | |
-| PATCH | `/ops/creators/:id` | seed scores, recommended flag |
+Same item fields as the nearby DTO, plus `address`, `name_aliases`, `hours_note`, `photo_url`, `photo_credit`, `provider_place_id`, `my_vote` (only when authenticated; `null` if the caller hasn't rated). `photo_url` here is the identical `place_cards.photo_url` value already present as this DTO's inherited `thumbnail_url` field — one asset, two field names for two render contexts (card thumbnail vs. hero image) — and it is `null` under the same `photo_visible` gate, not a separate check.
 
-### 8.5 Reports
+**Directions deeplinks** (built client-side from this response):
 
-`POST /reports` auth required.
+- Google Maps, when `provider_place_id` is present: `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>&query_place_id=<provider_place_id>`
+- Google Maps, when `provider_place_id` is null: `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>`
+- Waze (always available given lat/lng): `https://waze.com/ul?ll=<lat>,<lng>&navigate=yes`
+
+**Request:**
+
+```
+GET /places/since-then
+```
+
+**Response `200`:**
+
+```json
+{
+  "id": "since-then",
+  "name": "Since Then",
+  "lat": 3.1291,
+  "lng": 101.6779,
+  "area": "Bangsar",
+  "category": "Thai",
+  "halal_status": "unknown",
+  "price_band": "rm25_50",
+  "heat": "high",
+  "good_count": 18,
+  "bad_count": 2,
+  "good_pct": 90,
+  "mention_count": 3,
+  "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/since-then.jpg",
+  "latest_mention": { "handle": "@nomnomswithta", "quote": "Tom yum is the must-order. Comfort repeat." },
+  "address": "12, Jalan Telawi 3, Bangsar, 59100 Kuala Lumpur",
+  "name_aliases": ["Since-Then Bangsar"],
+  "hours_note": "Daily 11am–10pm, closed Mon (per Google, unverified)",
+  "photo_url": "https://xyzco.supabase.co/storage/v1/object/public/places/since-then.jpg",
+  "photo_credit": "@nomnomswithta via Instagram",
+  "provider_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+  "my_vote": "good"
+}
+```
+
+`404 PLACE_NOT_FOUND` if `:id` doesn't exist or `status != 'published'`.
+
+### 8.4 `GET /places/:id/posts`
+
+Newest first, no pagination in MVP (launch inventory is ≥1 mapped post per place, not a deep archive). Rows with `ingest_status` outside `('ready','matched')` or `is_self_interest = true` are excluded from the array — the same filter the `place_cards` view uses for `mention_count`, so what renders and what counts always agree.
+
+**Request:**
+
+```
+GET /places/gepuklah-by-mingchuun/posts
+```
+
+**Response `200`:**
+
+```json
+{
+  "items": [
+    {
+      "id": "post-DcBF0CLTQPH",
+      "platform": "instagram",
+      "post_url": "https://www.instagram.com/p/DcBF0CLTQPH/",
+      "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/posts/DcBF0CLTQPH.jpg",
+      "media_kind": "post",
+      "posted_at": "2026-08-14T00:00:00+08:00",
+      "is_sponsored": false,
+      "content_summary": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue.",
+      "creator": {
+        "id": "nomnomswithta",
+        "handle": "@nomnomswithta",
+        "display_name": "Ta",
+        "avatar_url": "https://xyzco.supabase.co/storage/v1/object/public/creators/nomnomswithta.jpg"
+      }
+    }
+  ]
+}
+```
+
+Note: `@mingchuun`'s own posts about Gepuklah exist in `posts` (`is_self_interest = true`) but never appear in this array or in `mention_count` — he owns the venue, per `seed/README.md`.
+
+### 8.5 `POST /places/:id/ratings`
+
+**Body:** `{ "type": "good" | "bad" }`
+
+**Logic:** `401` if unauthenticated. `404 PLACE_NOT_FOUND` if the place isn't `published`. Insert into `user_ratings`; a unique-violation on `(user_id, place_id)` is `409 VOTE_LOCKED`. On success, respond with the freshly computed counts.
+
+**Request:**
+
+```
+POST /places/since-then/ratings
+Authorization: Bearer <supabase-jwt>
+Content-Type: application/json
+
+{ "type": "good" }
+```
+
+**Response `200`:**
+
+```json
+{ "good_count": 19, "bad_count": 2, "good_pct": 90, "my_vote": "good" }
+```
+
+**Response `409`:**
+
+```json
+{ "error": { "code": "VOTE_LOCKED", "message": "You already rated this place." } }
+```
+
+### 8.6 `GET /places/:id/ratings/me`
+
+**Response `200`:** `{ "type": "good" }`
+**Response `404`:** `{ "error": { "code": "RATING_NOT_FOUND", "message": "You haven't rated this place yet." } }`
+
+### 8.7 `GET /me`
+
+No custom login/logout/refresh routes — those are handled by the Supabase JS client against Supabase Auth directly. This route reads the current Supabase session server-side and returns the matching `public.users` row.
+
+**Response `200`:**
+
+```json
+{
+  "id": "6f2b6e0a-8c31-4e1a-9c3d-7a2e5f9b0c11",
+  "email": "amir.hakim@gmail.com",
+  "display_name": "Amir Hakim",
+  "last_city": "KL",
+  "role": "user",
+  "created_at": "2026-08-20T14:03:11+08:00"
+}
+```
+
+`401 UNAUTHENTICATED` if there is no valid Supabase session.
 
 ---
 
-## 9. Jobs
+## 9. Display rules (for the FE, normative here because they gate what the API returns)
 
-| Job | Trigger | Work |
-|---|---|---|
-| `oembed_refresh` | Daily + on ingest | Re-fetch oEmbed; on fail keep last HTML or clear + leave thumb |
-| `places_hours_refresh` | Daily | Places Details for published rows; budget cap |
-| `recompute_place_mentions` | On post ready / takedown | `total_mentions` |
-| `recompute_creator_scores` | On rating / enqueue | legit/hype + credibility |
-| `nearby_cache_warm` | Every 10 min | Redis `nearby:{geohash5}` for KL cells |
-| `leaderboard_cache` | Every 10 min | Redis `leaderboard:kl` |
-
-Failed jobs: retry 3×, then `ingest_jobs.status = error`. No user-facing 500 from a stale cache — fall through to SQL.
+- `good_pct` is `null` when `good_count + bad_count < 5`. FE copy: "Baru — not enough ratings yet." Never show a percentage computed from fewer than 5 ratings.
+- Ratings never influence `distance_km ASC, mention_count DESC` ordering, on `/places/nearby` or anywhere else.
+- `mention_count` is always returned as the true count; the FE only renders the "N foodies mentioned this" line when it is `> 1` — that's a display choice, not an API-side omission.
+- No "verified visit" copy, ever — ratings are honor-system.
+- `halal_status: "unknown"` renders plainly (e.g. a neutral "Halal status: not confirmed"), never as "not halal."
 
 ---
 
-## 10. Privacy, legal, abuse
+## 10. Seeding & media
 
-- Do not log raw GPS beyond request logs TTL (≤ 7 days). Prefer geohash in analytics.
-- oEmbed HTML is third-party; sanitize (allowlist iframe hosts: TikTok, Instagram, YouTube).
-- Takedown SLA: ops can hide a post without deploy.
-- Right of publicity: `claim_status` + report `impersonation`; hide creator from leaderboard if `rejected` after claim dispute (ops flag `hidden`).
-- Rate-limit + unique vote is the v1 anti-farm. Store `users.created_at` for a later weight of `min(1, age_days / 7)`.
+Manual, via the Supabase table editor — see [`seed/PLAYBOOK.md`](seed/PLAYBOOK.md) for the row-by-row process (not yet written; this file documents the contract that playbook seeds into). `seed/*.csv` is the raw hand-curated research record and is never rewritten or deleted in place — new derived artifacts are new files.
 
----
-
-## 11. Non-functional
-
-| Requirement | Target |
-|---|---|
-| Nearby p95 | &lt; 200 ms from cache; &lt; 500 ms cold SQL |
-| Place detail p95 | &lt; 300 ms |
-| Availability | Best-effort MVP; no multi-region |
-| Pagination | Cursor (`posted_at, id`), page size 20 default, max 50 |
-| Idempotent writes | Votes, follows, saves |
-| Observability | Request id, match-queue depth, vote 409 rate, oEmbed fail rate |
+- Photo and avatar bytes are downloaded once and uploaded to Supabase Storage; `photo_url`/`avatar_url` point at the Storage copy, `photo_source_url`/`avatar_source_url` keep the original CDN URL for provenance only (those CDN URLs expire and must never be served directly to the FE).
+- `photo_visible = false` is the kill switch for a photo that turns out to be wrong or unlicensed, without deleting the row — enforced entirely by `place_cards` (§5.8/§6), which returns `photo_url`/`photo_credit` as `null` whenever it's set. Flip it in the table editor; no endpoint change needed.
+- Posts are seeded with `media_kind` set by hand (`reel` vs `post`, visible from the Instagram URL/thumbnail shape) and `ingest_status` moved from `pending` → `matched` → `ready` as each place match is confirmed and reviewed.
+- No automated re-fetch of anything — a photo or oEmbed that goes stale is refreshed by re-running the same manual seeding step.
 
 ---
 
-## 12. Seed (launch blocker)
-
-Before any prod deploy of nearby:
-
-- **80–150** `places` published inside KL with real `provider_place_id`.
-- **30–50** `creators` with `seed_credibility` and `seed_score_notes`.
-- ≥ 1 `ready` post per launch place.
-- ≥ 10 `recommended` creators for follow onboarding.
-
-Without this, do not ship the map.
-
----
-
-## 13. Implementation order
-
-1. Schema + KL polygon + seed script.  
-2. Auth + `/me`.  
-3. Read APIs: nearby, place, posts (oEmbed already in seed).  
-4. Ratings + counters + creator roll-up.  
-5. Follow + creator + leaderboard.  
-6. Saves, claims, reports, ops ingest.  
-7. Redis, hours refresh, oEmbed refresh.
-
----
-
-## 14. Open items (backend)
-
-- [ ] OTP vs magic-link vs Google-only for v1.  
-- [ ] Google vs Mapbox + monthly cap.  
-- [ ] Official KL polygon vs bbox in §6.1.  
-- [x] Map **Following** tab ships in v1 via `followed=1` + `sort=rank\|recent` (§6.6).  
-- [ ] Recency half-life tune after first week of data.  
-- [ ] Promote post-level ratings (`post_id`) — schema ready, APIs not.
-
----
-
-## 15. Relationship to other docs
+## 11. Relationship to other docs
 
 | Doc | Role |
 |---|---|
-| `SPEC.md` | Product / UX / stack |
-| `design.md` | Visual tokens (not API) |
-| `frontend/BACKEND.md` | Screen → route cheat sheet |
-| **This file** | Normative backend + model + rules |
+| `SPEC.md` | Product spec + the binding MVP cut (§8) this file implements. |
+| `frontend/BACKEND.md` | Screen → route map for the FE; copies this file's endpoint JSON verbatim. |
+| `seed/PLAYBOOK.md` | The manual, row-by-row seeding process for the schema in §5 (not yet written). |
+| `seed/*.csv` + `seed/fixtures` | Raw hand-curated research record, and local FE dev fixtures respectively — never the source of truth for the live schema. |
+| **This file** | Normative backend contract: schema, RLS, endpoints, display rules. |
