@@ -133,8 +133,13 @@ venue_candidates
   raw_lat / raw_lng double null
   google_place_id   text null     -- present and trusted for Tier A
   match_confidence  numeric       -- 0..1
-  photo_source      enum null     -- SPEC 4.4 contract: carried through to the
-  photo_source_url  text null     -- venues row, not backfilled by the scrape job
+  -- media, captured at EXTRACTION. See the note below: a queued
+  -- candidate's source URL is dead by the time a human merges it.
+  photo_source      enum null     -- influencer_post | google_places
+  photo_source_url  text null     -- provenance only; may be dead by merge time
+  photo_object_path text null     -- OUR storage. Downloaded at extraction.
+  photo_credit      text null     -- Places attribution string, or the @handle
+  photo_fetched_at  timestamptz null
   review_status     enum          -- auto | queued | merged | rejected
   resolved_venue_id fk → venues.id null
 ```
@@ -148,6 +153,19 @@ Tier A candidates arrive with a Place ID and skip matching entirely. Everything 
 | ≥ 0.85 | Auto-create `venues` row, `is_published = false` | Only after a human flips it |
 | 0.50 – 0.85 | Tier D queue, top-3 Places candidates pre-filled | Only after a human flips it |
 | < 0.50 | Reject and log | Never |
+
+### Media is captured at extraction, not at merge
+
+This follows from SPEC §4.4 and it is the rule that makes the provenance contract hold rather than merely aspire.
+
+Instagram CDN URLs are signed and expire. A candidate sitting in the Tier D queue for three days has a dead `photo_source_url` by the time a human merges it. So the download cannot happen at merge — the bytes land in our storage at **extraction**, and the candidate carries `photo_object_path`, not a pointer to someone else's CDN. Merge then copies `photo_object_path` → `venues.photo_url` and `photo_credit` → `venues.photo_credit` with no network call at all.
+
+`photo_credit` is the one field that genuinely cannot be backfilled: Google Places returns its attribution string *with* the photo response, so failing to capture it at extraction costs a second round trip to recover. For `influencer_post` candidates it is just the handle already on the row.
+
+Two consequences:
+
+- **Rejected candidates leave orphaned objects.** Anything below the 0.50 threshold was still downloaded. Storage is trivial at this volume, but the reject path must delete the object or you accumulate files no row points at.
+- **This collides with the open Places-terms question, usefully.** "Download the bytes at extraction" is precisely the behaviour under question for `google_places` sources. Until it resolves, Tier A may need to hold the URL and defer the fetch while `influencer_post` downloads immediately. That divergence is the whole reason `photo_source` sits on the candidate row — it is the one place the two sources genuinely cannot share a code path.
 
 **Two fields the pipeline may never write.** `halal_status` and `is_published` stay human-set at every confidence level, per SPEC §9 risks 1 and 2. There is no score high enough to infer halal status from a caption, and no crawler output that should reach a user without a person having looked at it.
 
