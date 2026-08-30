@@ -87,7 +87,7 @@ Load `supabase:supabase-postgres-best-practices` before changing any of this. De
 - **Native Postgres `enum` types**, not `text` + `CHECK`, for every fixed-vocabulary column. The deciding factor here is the Supabase Studio table editor: a column typed as an `enum` renders as a dropdown when someone is hand-seeding a row; a `text` + `CHECK` column is a free-text field where the constraint only bites on save. Given seeding is 100% manual, the dropdown is worth the minor friction of `ALTER TYPE ... ADD VALUE` if a vocabulary grows.
 - **`timestamptz` everywhere**, no bare `timestamp`.
 - **RLS enabled on every table** (§6). No table is force-RLS'd, so the `service_role` key used for seeding and any future server-side job continues to bypass RLS as intended.
-- **A `place_cards` view derives counts** (`mention_count`, `good_count`, `bad_count`, `last_mentioned_at`, `heat`) from `posts` and `user_ratings` at query time. Nothing is stored as a denormalized counter — there is no counter-drift class of bug to worry about at this scale.
+- **A `place_cards` view derives counts** (`mention_count`, `good_count`, `bad_count`, `last_mentioned_at`, `heat`) from `posts` and `user_ratings` at query time. Nothing is stored as a denormalized counter — there is no counter-drift class of bug to worry about at this scale. It is declared `security_invoker = true` (§5.8/§6) — a view is meaningless as an RLS boundary without it, since it would otherwise run with its creator's privileges and ignore the policies below entirely.
 - **No spatial index.** `distance_km` is computed with haversine over every published place per the constraint in the shared plan ("hundreds of rows"). A full scan of `places` per `/places/nearby` call is the right amount of engineering for that row count — do not add PostGIS or a bounding-box index preemptively.
 
 ### 5.1 Enum types
@@ -281,7 +281,9 @@ No update or delete path — lock semantics mean the unique constraint is the on
 ### 5.8 `place_cards` view
 
 ```sql
-create view public.place_cards as
+create view public.place_cards
+with (security_invoker = true)
+as
 select
   p.id,
   p.name,
@@ -296,9 +298,8 @@ select
   p.name_aliases,
   p.hours_note,
   p.provider_place_id,
-  p.photo_url,
-  p.photo_credit,
-  p.photo_visible,
+  case when p.photo_visible then p.photo_url end as photo_url,
+  case when p.photo_visible then p.photo_credit end as photo_credit,
   coalesce(mentions.mention_count, 0) as mention_count,
   mentions.last_mentioned_at,
   coalesce(ratings.good_count, 0) as good_count,
@@ -343,11 +344,17 @@ left join lateral (
 
 `good_pct` is **not** in the view — it depends on the ≥5-rating display rule (§8), which the route handler applies after reading `good_count`/`bad_count` so the null-under-5 threshold lives in one place (application code), not duplicated in SQL.
 
+`photo_visible` is enforced **inside the view**, not by any endpoint: `photo_url`/`photo_credit` come back `null` whenever `places.photo_visible = false`. This is the one and only place that gate is applied — no DTO or route handler needs its own check, and none should add one (a second check would be redundant at best, and could silently disagree with the view at worst).
+
+The column is `places.photo_url`; the JSON field is `thumbnail_url` on the nearby/place item DTO (§8.2, §8.3) — the view keeps the column's real name, and the route handler is what renames `photo_url` → `thumbnail_url` when assembling that DTO, to match the FE's existing field name for card thumbnails. `GET /places/:id` (§8.3) additionally echoes the same value back under its own real column name, `photo_url` — that's the identical asset under two field names for two render contexts (list-card thumbnail vs. full-detail hero image), not two different photos; there is only one photo per place in MVP.
+
 ---
 
 ## 6. Row-level security
 
 Every table has RLS enabled. There are no `FORCE ROW LEVEL SECURITY` statements, so `service_role` (Supabase table editor, any seed script) continues to read and write everything — that is the intended path for all content writes in MVP.
+
+**`place_cards` (§5.8) is declared `security_invoker = true`** (Postgres 15+, which Supabase runs). Without it, a view created by a migration/admin role executes with that role's privileges regardless of who queries it — silently bypassing every RLS policy below and returning draft/hidden places and non-renderable posts to `anon`. `security_invoker = true` makes the view evaluate RLS on `places`/`posts`/`user_ratings` as the querying role (`anon` or `authenticated`), exactly as if those tables were queried directly. The endpoint SQL in §8 still filters `where pc.status = 'published'` on top of that — defense in depth, not a substitute for it.
 
 ```sql
 alter table public.users enable row level security;
@@ -484,6 +491,7 @@ Timestamps in all JSON below are ISO 8601 (`2026-08-26T09:12:00+08:00`); `DD/MM/
    ```
 3. If fewer than 3 rows come back, re-run the same query with a radius large enough to cover the whole KL bounding box (city-wide "trending") and set `fallback: "kl_trending"`. Otherwise `fallback: null`.
 4. `good_pct`: null if `good_count + bad_count < 5`, else `round(100 * good_count / (good_count + bad_count))`.
+5. `thumbnail_url` in the item DTO below is `place_cards.photo_url` (see §5.8/§6) — already `null` when the place's `photo_visible = false`, no extra check needed here.
 
 **Request:**
 
@@ -566,7 +574,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
 
 ### 8.3 `GET /places/:id`
 
-Same item fields as the nearby DTO, plus `address`, `name_aliases`, `hours_note`, `photo_url`, `photo_credit`, `provider_place_id`, `my_vote` (only when authenticated; `null` if the caller hasn't rated).
+Same item fields as the nearby DTO, plus `address`, `name_aliases`, `hours_note`, `photo_url`, `photo_credit`, `provider_place_id`, `my_vote` (only when authenticated; `null` if the caller hasn't rated). `photo_url` here is the identical `place_cards.photo_url` value already present as this DTO's inherited `thumbnail_url` field — one asset, two field names for two render contexts (card thumbnail vs. hero image) — and it is `null` under the same `photo_visible` gate, not a separate check.
 
 **Directions deeplinks** (built client-side from this response):
 
@@ -717,7 +725,7 @@ No custom login/logout/refresh routes — those are handled by the Supabase JS c
 Manual, via the Supabase table editor — see [`seed/PLAYBOOK.md`](seed/PLAYBOOK.md) for the row-by-row process (not yet written; this file documents the contract that playbook seeds into). `seed/*.csv` is the raw hand-curated research record and is never rewritten or deleted in place — new derived artifacts are new files.
 
 - Photo and avatar bytes are downloaded once and uploaded to Supabase Storage; `photo_url`/`avatar_url` point at the Storage copy, `photo_source_url`/`avatar_source_url` keep the original CDN URL for provenance only (those CDN URLs expire and must never be served directly to the FE).
-- `photo_visible = false` is the kill switch for a photo that turns out to be wrong or unlicensed, without deleting the row.
+- `photo_visible = false` is the kill switch for a photo that turns out to be wrong or unlicensed, without deleting the row — enforced entirely by `place_cards` (§5.8/§6), which returns `photo_url`/`photo_credit` as `null` whenever it's set. Flip it in the table editor; no endpoint change needed.
 - Posts are seeded with `media_kind` set by hand (`reel` vs `post`, visible from the Instagram URL/thumbnail shape) and `ingest_status` moved from `pending` → `matched` → `ready` as each place match is confirmed and reviewed.
 - No automated re-fetch of anything — a photo or oEmbed that goes stale is refreshed by re-running the same manual seeding step.
 
