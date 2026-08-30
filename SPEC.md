@@ -101,8 +101,6 @@ Six tables and one view. Postgres. No PostGIS in v1 — `lat`/`lng` as `double p
 [users] ──────1:N──> [ratings] ─────────────N:1──┘
 ```
 
-> **INGESTION.md cross-reference.** That document's §3 proposes creating `influencers` as a post-v1 table and refers to `venue_posts`. Both predate this revision: `influencers` ships in v1, and `venue_posts` is now `recommendations`. Its `influencer_venues` table is largely subsumed by `recommendations` here — what remains genuinely new there is `venue_candidates` (the staging table) and the `source_tier` provenance, which v1 now carries as a column. Build against this file for anything in v1.
-
 ### `influencers`
 The curation source. Exists so the same person is one row no matter how many places they recommend — that is what makes deduplication and "4 influencers" possible.
 
@@ -120,9 +118,9 @@ The curation source. Exists so the same person is one row no matter how many pla
 | `content_type` | enum | `venue_reviewer` \| `recipe` \| `travel` \| `media_brand` \| `photographer`. Only `venue_reviewer` is seeded from — see §8 step 1. |
 | `is_operator` | bool | Default `false`. The creator owns or runs a venue. |
 | `operator_venue_id` | FK → `venues.id`, nullable | Their own shop, so recommendations of it can be discounted. |
-| `maps_list_url` | text, nullable | A public Google Maps place list, if they publish one. Recorded by hand in v1, not used by the v1 UI — it is the highest-value input to the deferred pipeline (INGESTION.md §2 Tier A). |
+| `maps_list_url` | text, nullable | Some creators publish a public Google Maps place list in their link-in-bio — names, addresses and coordinates already resolved, by them, for free. Roughly one creator in four. Not used by the UI; it is a shortcut for whoever is seeding. |
 
-The last four are filled in by hand while seeding, cost no engineering, and are what INGESTION.md Phase 0 asks for. `content_type` and `is_operator` also do real v1 work — see §8 and §9 risk 11.
+All four are filled in by hand while seeding and cost no engineering. `content_type` and `is_operator` do real v1 work — see §8 and §9 risk 11.
 
 **No `credibility_score` in v1.** The moment that column exists, someone builds a leaderboard.
 
@@ -140,7 +138,6 @@ One row per post. Replaces the old `venue_posts` — same job, but it now links 
 | `media_type` | enum | `reel` \| `post` \| `carousel`. A Reel embed is portrait and far taller than a photo post — without this the detail page can't reserve the right box and shifts layout on load. |
 | `embed_ok` | bool | Default `true`. Posts get deleted or go private; flip this to hide a dead embed **without** deleting the row — the recommendation still happened, so the influencer count must not drop. |
 | `is_self_interest` | bool | Default `false`. True when the creator owns this venue. **Excluded from `influencer_count`** — an owner posting about their own shop is not corroboration. |
-| `source_tier` | text, nullable | Which tier of INGESTION.md §2 *would have* found this venue: `A`, `B`, `C1`–`C4`, or `human`. Recorded by hand during v1 seeding at a cost of seconds per row; it is the labelled dataset that tells the pipeline which tiers are worth building. |
 
 ### `venues`
 Referenced by both paths, derived from neither — so a place can be seeded before anyone posts about it.
@@ -281,20 +278,17 @@ Binding for schema, copy, and UI.
 
 Influencer-first, because that is the order the information actually arrives in.
 
-1. Add ~30 Klang Valley food influencers to `influencers` — **filtered, not ranked**. Follower count is close to useless here: INGESTION.md Finding 2 found that five of eleven top-ranked Malaysian food creators (including a 4.4M account) are recipe and home-cook accounts that review no venues at all. Set `content_type` on entry and seed only from `venue_reviewer`. Set `is_operator` while you're on their profile.
+1. Add ~30 Klang Valley food influencers to `influencers` — **filtered, not ranked**. Follower count is close to useless here: of eleven top-ranked Malaysian food creators, five are recipe and home-cook accounts that review no venues at all, one of them with 4.4M followers. Set `content_type` on entry and seed only from `venue_reviewer`. Set `is_operator` while you're on their profile. While you're there, check their link-in-bio for a public Maps place list and record it in `maps_list_url` — it is a pre-resolved venue list you can seed straight from.
 2. Work through one influencer's recent posts.
 3. For each genuine recommendation, **look up the venue first**. Already there? Add a `recommendations` row pointing at it — its count goes to 2, and that venue just got better. Not there? Create it, filling every field including `halal_status` and `hours_note`, then add the recommendation.
 4. Capture media: one venue photo and the influencer's avatar, downloaded into our bucket with `*_source_url`, `photo_credit` and `photo_source` filled in. **Owned by the separate scrape workstream** — §4.4 is the contract it writes against.
-5. Set `source_tier` on the recommendation — which tier would have found this venue automatically. Seconds per row.
-6. Flip `is_published` once the venue's fields are complete and a photo exists.
-
-Steps 1 and 5 are INGESTION.md Phase 0 in full, and they cost no engineering time because the `influencers` and `recommendations` tables already ship in v1. They buy real tier-coverage numbers before a line of pipeline code is written.
+5. Flip `is_published` once the venue's fields are complete and a photo exists.
 
 Step 3 is the entire point of this model. Venue-first seeding would have quietly created duplicate rows for the same stall and thrown away the corroboration signal.
 
 **Target: 150 published venues across 5 Klang Valley areas before launch** — roughly 30 per area, enough that the nearby list is never thin.
 
-Deliberately manual. It is faster than building the pipeline, it produces the labelled data the future pipeline is evaluated against, and it forces us to see every venue we ship.
+Deliberately manual, and not a stopgap. At this scale hand-seeding beats any pipeline on the metric that matters — cost per *trustworthy* venue. It forces a person to see every venue we ship, which is the quality the product is actually selling. Automation makes volume cheap and trust expensive; volume is not the bottleneck.
 
 ---
 
@@ -312,7 +306,7 @@ Deliberately manual. It is faster than building the pipeline, it produces the la
 | 8 | **Expiring source URLs** — scraped media hotlinked instead of downloaded | Schema forbids it: `photo_url` and `avatar_url` are our storage; source URLs live in separate columns and are never rendered. |
 | 9 | **Google Places photo terms** differ from scraped post media | `photo_source` keeps the two on separate code paths. The scrape workstream confirms current terms before launch. |
 | 10 | **Dead embeds** — a post is deleted and the detail page shows a blank box | `embed_ok = false` hides it while keeping the recommendation row, so the influencer count stays honest. |
-| 11 | **Creator-operators inflate the count** — a creator who owns a restaurant posts about it constantly | `is_operator` on the influencer, `is_self_interest` on the recommendation, and `influencer_count` filters those out. INGESTION.md Finding 3 documents a 127K creator whose last 30 posts yield exactly one venue: his own. |
+| 11 | **Creator-operators inflate the count** — a creator who owns a restaurant posts about it constantly | `is_operator` on the influencer, `is_self_interest` on the recommendation, and `influencer_count` filters those out. A 127K-follower creator in the sample opened his own restaurant; his last 30 posts yield exactly one venue — that one. |
 
 ---
 
@@ -322,7 +316,7 @@ Cut deliberately. Preserved so nothing is re-litigated, and so v1 schema choices
 
 - **Credibility layer:** `credibility_score`, Legit-vs-Hype voting on recommendations, leaderboards, "top-rated creators only". The `influencers` and `recommendations` tables are already the right shape to carry these.
 - **Influencer screens:** profile page, full recommendation history. The query works today; the screen is post-v1.
-- **Automated ingestion:** fully specified in **INGESTION.md** — a four-tier resolution ladder, Places matching thresholds, and a review queue. Two tables remain to be added there (`influencer_venues`, `venue_candidates`); the `influencers` table it proposes now ships in v1, so that part of its §3 is already done. See the reconciliation note in §4.
+- **Automated ingestion:** unscheduled and unspecified. Revisit only when hand-seeding is measurably the constraint on growth — it is not, at 150 venues. Two things to carry forward when it is: collection stays logged-out via managed providers (never authenticate a collector), and PDPA-wise we store public post URLs and handles, never scraped personal data.
 - **Venue resolution ladder:** IG location tags → Google Places matching → `match_confidence` → review queue. (v1's manual lookup in §8 step 3 is this done by hand.)
 - **Time:** `venue_hours`, `venue_closures` (Raya, CNY), "open now".
 - **Geo:** map view, PostGIS, drive-time ranking, `areas` table with boundaries and aliases.
