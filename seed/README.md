@@ -4,6 +4,8 @@ Hand-curated launch inventory, collected 30/08/2026 from public Instagram post p
 
 See [`PLAYBOOK.md`](PLAYBOOK.md) for the manual triage-and-seed process this data was collected under — the process to repeat for every new creator going forward.
 
+For a static, API-shaped local dev fixture built from this data, see [`fixtures/README.md`](fixtures/README.md).
+
 | File | Rows | Table |
 |---|---|---|
 | `creators.csv` | 5 | `creators` |

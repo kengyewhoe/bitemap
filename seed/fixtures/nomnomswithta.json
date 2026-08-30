@@ -1,0 +1,701 @@
+{
+  "_meta": {
+    "coords_placeholder": true,
+    "reference_point": {
+      "lat": 3.139,
+      "lng": 101.6869,
+      "label": "KL centroid"
+    },
+    "generated_from": "seed/*.csv",
+    "generated_at": "2026-08-30"
+  },
+  "places_nearby": {
+    "items": [
+      {
+        "id": "since-then",
+        "name": "Since Then",
+        "lat": 3.1291,
+        "lng": 101.6779,
+        "area": "Bangsar",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 1.5,
+        "heat": "medium",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Tom yum is the must-order. Comfort repeat."
+        }
+      },
+      {
+        "id": "a-rest",
+        "name": "A'rest",
+        "lat": 3.1421,
+        "lng": 101.7169,
+        "area": "TRX",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 3.3,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Underwhelming vs expectations but would return to work/chill. Honest negative-ish."
+        }
+      },
+      {
+        "id": "555-thainanese-chicken-rice",
+        "name": "555 Thainanese Chicken Rice",
+        "lat": 3.1631,
+        "lng": 101.6511,
+        "area": "Sri Hartamas",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 4.8,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Decent cozy family chicken rice. Venue has IG @555thainanese."
+        }
+      },
+      {
+        "id": "fujisawa-izakaya",
+        "name": "Fujisawa Izakaya",
+        "lat": 3.1698,
+        "lng": 101.6509,
+        "area": "Steppes Mont Kiara",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 5.3,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Few options at Steppes. Lazy caption but venue fully specified."
+        }
+      },
+      {
+        "id": "gepuklah-by-mingchuun",
+        "name": "Gepuklah By Mingchuun",
+        "lat": 3.137,
+        "lng": 101.618,
+        "area": "Damansara Jaya",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 7.7,
+        "heat": "medium",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue."
+        }
+      },
+      {
+        "id": "makhan-by-kitchen-mafia",
+        "name": "Makhan By Kitchen Mafia",
+        "lat": 3.1073,
+        "lng": 101.6067,
+        "area": "PJ",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 9.6,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "BOTH venue post AND sponsored (Guinness collab). Real visit, real verdict 'pleasant surprise, can try'. Non-halal - serves alcohol."
+        }
+      },
+      {
+        "id": "deewow",
+        "name": "DEEWOW",
+        "lat": 3.2149,
+        "lng": 101.6349,
+        "area": "Kepong",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 10.2,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Thai food. Celebrity-owned - 'could've used just his face and fame'. Would revisit."
+        }
+      },
+      {
+        "id": "two-fold-coffee",
+        "name": "Two Fold Coffee",
+        "lat": 3.093,
+        "lng": 101.586,
+        "area": "Kelana Jaya",
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": 12.3,
+        "heat": "medium",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Shio pan; eat hot. Repeat visitor, near home."
+        }
+      },
+      {
+        "id": "don-t-tell-mama",
+        "name": "Don't Tell Mama",
+        "lat": null,
+        "lng": null,
+        "area": null,
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": null,
+        "heat": "medium",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Parking and queue are a headache. Pet-friendly outdoor."
+        }
+      },
+      {
+        "id": "lai-foong-lala-noodle",
+        "name": "Lai Foong Lala Noodle",
+        "lat": null,
+        "lng": null,
+        "area": null,
+        "category": null,
+        "halal_status": "unknown",
+        "price_band": null,
+        "distance_km": null,
+        "heat": "low",
+        "good_count": 0,
+        "bad_count": 0,
+        "good_pct": null,
+        "mention_count": 1,
+        "thumbnail_url": null,
+        "latest_mention": {
+          "handle": "@nomnomswithta",
+          "quote": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive."
+        }
+      }
+    ],
+    "fallback": null
+  },
+  "place_detail": {
+    "since-then": {
+      "id": "since-then",
+      "name": "Since Then",
+      "lat": 3.1291,
+      "lng": 101.6779,
+      "area": "Bangsar",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "medium",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Tom yum is the must-order. Comfort repeat."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "a-rest": {
+      "id": "a-rest",
+      "name": "A'rest",
+      "lat": 3.1421,
+      "lng": 101.7169,
+      "area": "TRX",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Underwhelming vs expectations but would return to work/chill. Honest negative-ish."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "555-thainanese-chicken-rice": {
+      "id": "555-thainanese-chicken-rice",
+      "name": "555 Thainanese Chicken Rice",
+      "lat": 3.1631,
+      "lng": 101.6511,
+      "area": "Sri Hartamas",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Decent cozy family chicken rice. Venue has IG @555thainanese."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "fujisawa-izakaya": {
+      "id": "fujisawa-izakaya",
+      "name": "Fujisawa Izakaya",
+      "lat": 3.1698,
+      "lng": 101.6509,
+      "area": "Steppes Mont Kiara",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Few options at Steppes. Lazy caption but venue fully specified."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "gepuklah-by-mingchuun": {
+      "id": "gepuklah-by-mingchuun",
+      "name": "Gepuklah By Mingchuun",
+      "lat": 3.137,
+      "lng": 101.618,
+      "area": "Damansara Jaya",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "medium",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "makhan-by-kitchen-mafia": {
+      "id": "makhan-by-kitchen-mafia",
+      "name": "Makhan By Kitchen Mafia",
+      "lat": 3.1073,
+      "lng": 101.6067,
+      "area": "PJ",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "BOTH venue post AND sponsored (Guinness collab). Real visit, real verdict 'pleasant surprise, can try'. Non-halal - serves alcohol."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "deewow": {
+      "id": "deewow",
+      "name": "DEEWOW",
+      "lat": 3.2149,
+      "lng": 101.6349,
+      "area": "Kepong",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Thai food. Celebrity-owned - 'could've used just his face and fame'. Would revisit."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "two-fold-coffee": {
+      "id": "two-fold-coffee",
+      "name": "Two Fold Coffee",
+      "lat": 3.093,
+      "lng": 101.586,
+      "area": "Kelana Jaya",
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "medium",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Shio pan; eat hot. Repeat visitor, near home."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "don-t-tell-mama": {
+      "id": "don-t-tell-mama",
+      "name": "Don't Tell Mama",
+      "lat": null,
+      "lng": null,
+      "area": null,
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "medium",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Parking and queue are a headache. Pet-friendly outdoor."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    },
+    "lai-foong-lala-noodle": {
+      "id": "lai-foong-lala-noodle",
+      "name": "Lai Foong Lala Noodle",
+      "lat": null,
+      "lng": null,
+      "area": null,
+      "category": null,
+      "halal_status": "unknown",
+      "price_band": null,
+      "heat": "low",
+      "good_count": 0,
+      "bad_count": 0,
+      "good_pct": null,
+      "mention_count": 1,
+      "thumbnail_url": null,
+      "latest_mention": {
+        "handle": "@nomnomswithta",
+        "quote": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive."
+      },
+      "address": null,
+      "name_aliases": null,
+      "hours_note": null,
+      "photo_url": null,
+      "photo_credit": null,
+      "provider_place_id": null,
+      "my_vote": null
+    }
+  },
+  "place_posts": {
+    "since-then": {
+      "items": [
+        {
+          "id": "post-DcL64_sz_Wg",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DcL64_sz_Wg/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-08-18T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Tom yum is the must-order. Comfort repeat.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "a-rest": {
+      "items": [
+        {
+          "id": "post-DbLL9KxPC9a",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DbLL9KxPC9a/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-07-24T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Underwhelming vs expectations but would return to work/chill. Honest negative-ish.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "555-thainanese-chicken-rice": {
+      "items": [
+        {
+          "id": "post-Dah2dEUvCPm",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/Dah2dEUvCPm/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-07-08T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Decent cozy family chicken rice. Venue has IG @555thainanese.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "fujisawa-izakaya": {
+      "items": [
+        {
+          "id": "post-DaU6d2ePsJh",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DaU6d2ePsJh/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-07-03T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Few options at Steppes. Lazy caption but venue fully specified.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "gepuklah-by-mingchuun": {
+      "items": [
+        {
+          "id": "post-DcBF0CLTQPH",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DcBF0CLTQPH/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-08-14T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "makhan-by-kitchen-mafia": {
+      "items": [
+        {
+          "id": "post-DZgbHQCz3XT",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DZgbHQCz3XT/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-06-12T00:00:00+08:00",
+          "is_sponsored": true,
+          "content_summary": "BOTH venue post AND sponsored (Guinness collab). Real visit, real verdict 'pleasant surprise, can try'. Non-halal - serves alcohol.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "deewow": {
+      "items": [
+        {
+          "id": "post-DZxb_0kT8p-",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DZxb_0kT8p-/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-06-19T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Thai food. Celebrity-owned - 'could've used just his face and fame'. Would revisit.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "two-fold-coffee": {
+      "items": [
+        {
+          "id": "post-DcgGW1BPP9j",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DcgGW1BPP9j/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-08-26T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Shio pan; eat hot. Repeat visitor, near home.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "don-t-tell-mama": {
+      "items": [
+        {
+          "id": "post-Db5XwxlTvgo",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/Db5XwxlTvgo/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-08-11T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Parking and queue are a headache. Pet-friendly outdoor.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    },
+    "lai-foong-lala-noodle": {
+      "items": [
+        {
+          "id": "post-DZpRvwfT1wc",
+          "platform": "instagram",
+          "post_url": "https://www.instagram.com/p/DZpRvwfT1wc/",
+          "thumbnail_url": null,
+          "media_kind": "post",
+          "posted_at": "2026-06-16T00:00:00+08:00",
+          "is_sponsored": false,
+          "content_summary": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive.",
+          "creator": {
+            "id": "nomnomswithta",
+            "handle": "@nomnomswithta",
+            "display_name": "Ta",
+            "avatar_url": null
+          }
+        }
+      ]
+    }
+  }
+}
