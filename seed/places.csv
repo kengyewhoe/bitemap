@@ -1,28 +1,28 @@
-id,provider_place_id,name,location,address,area,category,operational_status,total_mentions,weighted_rank,seed_note
-two-fold-coffee,,Two Fold Coffee,,,Kelana Jaya,,,1,,"Shio pan; eat hot. Repeat visitor, near home."
-since-then,,Since Then,,,Bangsar,,,1,,Tom yum is the must-order. Comfort repeat.
-gepuklah-by-mingchuun,,Gepuklah By Mingchuun,,,Damansara Jaya,,,1,,"INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue."
-don-t-tell-mama,,Don't Tell Mama,,,,,,1,,Parking and queue are a headache. Pet-friendly outdoor.
-sisters-place,,Sisters Place,,,TTDI,,,1,,"Muslim Friendly CKT RM20; squid prawn kerang. Halal wording is the creator's, NOT verified."
-niji-izakaya,,Niji Izakaya,,,KL,,,1,,Opened a few months ago. Venue has its own IG account.
-koppiku,,Koppiku,,,Universiti Malaya,,,1,,"HARD CASE: venue identity only in #koppiku #universitimalaya. No tag, no caption name."
-a-rest,,A'rest,,,TRX,,,1,,Underwhelming vs expectations but would return to work/chill. Honest negative-ish.
-555-thainanese-chicken-rice,,555 Thainanese Chicken Rice,,,Sri Hartamas,,,1,,Decent cozy family chicken rice. Venue has IG @555thainanese.
-gentle-mess,,Gentle Mess,,,,,,1,,HARD CASE 2: venue only in #gentlemess #cafegentlemess. Same pattern as Koppiku.
-fujisawa-izakaya,,Fujisawa Izakaya,,,Steppes Mont Kiara,,,1,,Few options at Steppes. Lazy caption but venue fully specified.
-nale-the-nasi-lemak-company,,Nale The Nasi Lemak Company,,,Damansara Pavilion,,,1,,RM289 indomie platter - creator calls it very pricey. NEGATIVE-ish.
-serdang-midnight-curry-mee-stall,,Serdang Midnight Curry Mee Stall,,,Kampung Baru Seri Kembangan,,,1,,STALL. Open till 3am - hours_note. Roadside parking. YTF RM2-2.50/pc. RM69 pricey but yumz.
-golden-city-seafood-restaurant-kopitiam,,Golden City Seafood Restaurant Kopitiam,,,Taman Sri Segambut,,,1,,CAPTION USELESS - 'We did not finish the whole thing'. Venue comes 100% from the location tag. Wantan mee.
-unnamed-kelapa-laut-stall,,UNNAMED kelapa laut stall,,,Seksyen 7 Shah Alam,,,1,,HARD: tag is a RELATIVE DESCRIPTION not a venue name. Unnamed street stall. Shah Alam - outside SPEC 5 areas.
-deewow,,DEEWOW,,,Kepong,,,1,,Thai food. Celebrity-owned - 'could've used just his face and fame'. Would revisit.
-lai-foong-lala-noodle,,Lai Foong Lala Noodle,,,,,,1,,Creator calls it one of the best lala noodle in Malaysia. STRONG positive.
-kbb-steak,,KBB Steak,,,TTDI,,,1,,Wild Ribs Burger. Short strong positive.
-ibrahim-pisang-cheese-banjir,,Ibrahim Pisang Cheese Banjir,,,Bangi,,,1,,OUT OF SPEC AREA - Bangi not in the 5 KV areas. Pisang cheese banjir.
-cake-jalan-tiung,,Cake Jalan Tiung,,,,,,1,,HARD CASE 3: venue only in #cakejalantiung. Butter tteok + shiopan. Pattern is consistent for this creator.
-makhan-by-kitchen-mafia,,Makhan By Kitchen Mafia,,,PJ,,,1,,"BOTH venue post AND sponsored (Guinness collab). Real visit, real verdict 'pleasant surprise, can try'. Non-halal - serves alcohol."
-hikiniku-to-come,,Hikiniku to Come,,,,,,1,,RM67.90++ set. Opening 15 Aug. 'restaurant is LEGIT'. Venue has own IG.
-klcg-confectionery-bakery,,KLCG Confectionery Bakery,,,Kampung Datuk Keramat,,,1,,"RICHEST RECORD. Full address in caption. [MUSLIM FRIENDLY] marker. Per-item ratings+prices: Pistachio Supreme 8/10 RM15.90, Strawberry&Creme 7/10 RM15.90, Pain Suisse Hazelnut Praline 10/10 RM16.90. O"
-chilli-s,,Chilli's,,,Jaya Shopping Centre PJ,,,1,,Fried mozzarella 3pc RM33.60. Chain venue in a mall.
-meat-heaven-kl,,Meat Heaven KL,,,,,,1,,"PURE C2 CASE: no location tag, no venue name in caption. Resolved 100% by @-mention. A5 Miyazaki Wagyu Donburi RM299 promo 400-450g."
-sweets-by-baby-pop-up-stall,,Sweets by Baby (pop-up stall),,,Dataran Karnival Shah Alam,,,1,,"POP-UP at a food fest, not a permanent venue. Creator warns similar names exist and to waze 'perkarangan stadium shah alam' - he hit the wrong place 3 times himself."
-unnamed-claypot-rice-raw-crab-2-outlets,,UNNAMED claypot rice / raw crab (2 outlets),,,Subang Jaya + Kepong,,,1,,"MULTI-OUTLET: one post, two addresses. Venue name never given. '(No Pork No Alcohol)' = pork_free signal, creator's words only."
+id,provider_place_id,name,name_aliases,lat,lng,address,area,category,halal_status,price_band,hours_note,operational_status,photo_url,photo_source,photo_source_url,photo_credit,photo_fetched_at,photo_visible,status,notes
+two-fold-coffee,,Two Fold Coffee,,,,,Kelana Jaya,,unknown,,,operational,,,,,,true,draft,"Shio pan; eat hot. Repeat visitor, near home."
+since-then,,Since Then,,,,,Bangsar,,unknown,,,operational,,,,,,true,draft,Tom yum is the must-order. Comfort repeat.
+gepuklah-by-mingchuun,,Gepuklah By Mingchuun,Gepuklah,,,,Damansara Jaya,,unknown,,,operational,,,,,,true,draft,"INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue."
+don-t-tell-mama,,Don't Tell Mama,,,,,,,unknown,,,operational,,,,,,true,draft,Parking and queue are a headache. Pet-friendly outdoor.
+sisters-place,,Sisters Place,,,,,TTDI,,unknown,rm10_25,,operational,,,,,,true,draft,"Muslim Friendly CKT RM20; squid prawn kerang. Halal wording is the creator's, NOT verified. price_band from stated CKT RM20."
+niji-izakaya,,Niji Izakaya,,,,,KL,,unknown,,,operational,,,,,,true,draft,Opened a few months ago. Venue has its own IG account.
+koppiku,,Koppiku,,,,,Universiti Malaya,,unknown,,,operational,,,,,,true,draft,"HARD CASE: venue identity only in #koppiku #universitimalaya. No tag, no caption name."
+a-rest,,A'rest,,,,,TRX,,unknown,,,operational,,,,,,true,draft,Underwhelming vs expectations but would return to work/chill. Honest negative-ish.
+555-thainanese-chicken-rice,,555 Thainanese Chicken Rice,,,,,Sri Hartamas,,unknown,,,operational,,,,,,true,draft,Decent cozy family chicken rice. Venue has IG @555thainanese.
+gentle-mess,,Gentle Mess,,,,,,,unknown,,,operational,,,,,,true,draft,HARD CASE 2: venue only in #gentlemess #cafegentlemess. Same pattern as Koppiku.
+fujisawa-izakaya,,Fujisawa Izakaya,,,,,Steppes Mont Kiara,,unknown,,,operational,,,,,,true,draft,Few options at Steppes. Lazy caption but venue fully specified.
+nale-the-nasi-lemak-company,,Nale The Nasi Lemak Company,,,,,Damansara Pavilion,,unknown,,,operational,,,,,,true,draft,RM289 indomie platter - creator calls it very pricey. NEGATIVE-ish. price_band left null: RM289 is a sharing platter; per-person spend unknown.
+serdang-midnight-curry-mee-stall,,Serdang Midnight Curry Mee Stall,,,,,Kampung Baru Seri Kembangan,,unknown,,Open till ~3am (creator-reported),operational,,,,,,true,draft,STALL. Open till 3am - hours_note. Roadside parking. YTF RM2-2.50/pc. RM69 pricey but yumz.
+golden-city-seafood-restaurant-kopitiam,,Golden City Seafood Restaurant Kopitiam,,,,,Taman Sri Segambut,,unknown,,,operational,,,,,,true,draft,CAPTION USELESS - 'We did not finish the whole thing'. Venue comes 100% from the location tag. Wantan mee.
+unnamed-kelapa-laut-stall,,UNNAMED kelapa laut stall,,,,,Seksyen 7 Shah Alam,,unknown,,,operational,,,,,,true,draft,HARD: tag is a RELATIVE DESCRIPTION not a venue name. Unnamed street stall. Shah Alam - outside SPEC 5 areas.
+deewow,,DEEWOW,,,,,Kepong,,unknown,,,operational,,,,,,true,draft,Thai food. Celebrity-owned - 'could've used just his face and fame'. Would revisit.
+lai-foong-lala-noodle,,Lai Foong Lala Noodle,,,,,,,unknown,,,operational,,,,,,true,draft,Creator calls it one of the best lala noodle in Malaysia. STRONG positive.
+kbb-steak,,KBB Steak,,,,,TTDI,,unknown,,,operational,,,,,,true,draft,Wild Ribs Burger. Short strong positive.
+ibrahim-pisang-cheese-banjir,,Ibrahim Pisang Cheese Banjir,,,,,Bangi,,unknown,,,operational,,,,,,true,draft,OUT OF SPEC AREA - Bangi not in the 5 KV areas. Pisang cheese banjir.
+cake-jalan-tiung,,Cake Jalan Tiung,,,,,,,unknown,,,operational,,,,,,true,draft,HARD CASE 3: venue only in #cakejalantiung. Butter tteok + shiopan. Pattern is consistent for this creator.
+makhan-by-kitchen-mafia,,Makhan By Kitchen Mafia,,,,,PJ,,non_halal,,,operational,,,,,,true,draft,"BOTH venue post AND sponsored (Guinness collab). Real visit, real verdict 'pleasant surprise, can try'. Non-halal - serves alcohol. halal_status = non_halal from the venue's own Guinness collab, not a creator claim."
+hikiniku-to-come,,Hikiniku to Come,,,,,,,unknown,rm50_plus,,operational,,,,,,true,draft,RM67.90++ set. Opening 15 Aug. 'restaurant is LEGIT'. Venue has own IG. price_band from stated RM67.90++ set price.
+klcg-confectionery-bakery,,KLCG Confectionery Bakery,,,,,Kampung Datuk Keramat,,unknown,rm10_25,,operational,,,,,,true,draft,"RICHEST RECORD. Full address in caption. [MUSLIM FRIENDLY] marker. Per-item ratings+prices: Pistachio Supreme 8/10 RM15.90, Strawberry&Creme 7/10 RM15.90, Pain Suisse Hazelnut Praline 10/10 RM16.90. price_band from stated per-item prices. Halal wording is the creator's, NOT verified."
+chilli-s,,Chilli's,,,,,Jaya Shopping Centre PJ,,unknown,,,operational,,,,,,true,draft,Fried mozzarella 3pc RM33.60. Chain venue in a mall. price_band left null: only an appetizer price is stated.
+meat-heaven-kl,,Meat Heaven KL,,,,,,,unknown,rm50_plus,,operational,,,,,,true,draft,"PURE C2 CASE: no location tag, no venue name in caption. Resolved 100% by @-mention. A5 Miyazaki Wagyu Donburi RM299 promo 400-450g. price_band from stated RM299 donburi."
+sweets-by-baby-pop-up-stall,,Sweets by Baby (pop-up stall),,,,,Dataran Karnival Shah Alam,,unknown,,,unknown,,,,,,true,draft,"POP-UP at a food fest, not a permanent venue. Creator warns similar names exist and to waze 'perkarangan stadium shah alam' - he hit the wrong place 3 times himself. operational_status unknown: the fest has ended."
+unnamed-claypot-rice-raw-crab-2-outlets,,UNNAMED claypot rice / raw crab (2 outlets),,,,,Subang Jaya + Kepong,,unknown,,,operational,,,,,,true,draft,"MULTI-OUTLET: one post, two addresses. Venue name never given. '(No Pork No Alcohol)' = pork_free signal, creator's words only - so halal_status stays unknown."

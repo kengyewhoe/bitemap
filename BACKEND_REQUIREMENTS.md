@@ -783,7 +783,7 @@ No custom login/logout/refresh routes — those are handled by the Supabase JS c
 
 ## 10. Seeding & media
 
-Manual, via the Supabase table editor — see [`seed/PLAYBOOK.md`](seed/PLAYBOOK.md) for the row-by-row process (not yet written; this file documents the contract that playbook seeds into). `seed/*.csv` is the raw hand-curated research record and is never rewritten or deleted in place — new derived artifacts are new files.
+Manual, via the Supabase table editor — see [`seed/PLAYBOOK.md`](seed/PLAYBOOK.md) for the row-by-row process. The one exception is the initial research batch: `seed/*.csv` now carries this section's §5 column headers, and [`supabase/seed.sql`](supabase/seed.sql) (generated from those rows) is applied automatically by `supabase db reset`. The CSVs are the frozen record of the 30/08/2026 sample — ongoing seeding goes into Supabase directly, never back into them.
 
 - Photo and avatar bytes are downloaded once and uploaded to Supabase Storage; `photo_url`/`avatar_url` point at the Storage copy, `photo_source_url`/`avatar_source_url` keep the original CDN URL for provenance only (those CDN URLs expire and must never be served directly to the FE).
 - `photo_visible = false` is the kill switch for a photo that turns out to be wrong or unlicensed, without deleting the row — enforced entirely by `place_cards` (§5.8/§6), which returns `photo_url`/`photo_credit` as `null` whenever it's set. Flip it in the table editor; no endpoint change needed.
@@ -798,6 +798,6 @@ Manual, via the Supabase table editor — see [`seed/PLAYBOOK.md`](seed/PLAYBOOK
 |---|---|
 | `SPEC.md` | Product spec + the binding MVP cut (§8) this file implements. |
 | `frontend/BACKEND.md` | Screen → route map for the FE; copies this file's endpoint JSON verbatim. |
-| `seed/PLAYBOOK.md` | The manual, row-by-row seeding process for the schema in §5 (not yet written). |
-| `seed/*.csv` + `seed/fixtures` | Raw hand-curated research record, and local FE dev fixtures respectively — never the source of truth for the live schema. |
+| `seed/PLAYBOOK.md` | The manual, row-by-row seeding process for the schema in §5. |
+| `seed/*.csv` + `seed/fixtures` | Raw hand-curated research record (loaded once via `supabase/seed.sql`), and local FE dev fixtures respectively — never the source of truth for the live schema. |
 | **This file** | Normative backend contract: schema, RLS, endpoints, display rules. |

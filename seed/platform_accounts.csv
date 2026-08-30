@@ -1,6 +1,6 @@
-id,creator_id,platform,handle,external_id,follower_count
-pa-mingchuun,mingchuun,instagram,@mingchuun,,127000
-pa-tomato-ate-it,tomato-ate-it,instagram,@tomato_ate_it,,50900
-pa-jajabinxz,jajabinxz,instagram,@jajabinxz,,24400
-pa-nomnomswithta,nomnomswithta,instagram,@nomnomswithta,,25700
-pa-jcinthehizzay,jcinthehizzay,instagram,@jcinthehizzay,,164000
+id,creator_id,platform,handle,external_id,follower_count,profile_url
+pa-mingchuun,mingchuun,instagram,mingchuun,,127000,https://www.instagram.com/mingchuun/
+pa-tomato-ate-it,tomato-ate-it,instagram,tomato_ate_it,,50900,https://www.instagram.com/tomato_ate_it/
+pa-jajabinxz,jajabinxz,instagram,jajabinxz,,24400,https://www.instagram.com/jajabinxz/
+pa-nomnomswithta,nomnomswithta,instagram,nomnomswithta,,25700,https://www.instagram.com/nomnomswithta/
+pa-jcinthehizzay,jcinthehizzay,instagram,jcinthehizzay,,164000,https://www.instagram.com/jcinthehizzay/

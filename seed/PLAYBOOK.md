@@ -5,9 +5,13 @@ This is the seeding process. There is no scraping pipeline — this manual, crea
 `BACKEND_REQUIREMENTS.md` §5, via the Supabase Studio table editor, per §10. `seed/README.md` and
 `seed/creators.csv` are the evidence base for every rule below — the numbers are cited, not invented.
 
-Tables, in FK order: `creators` → `platform_accounts` → `places` → `posts`. `seed/*.csv` is the raw
-research record behind this playbook and is never rewritten or deleted — new work goes into
-Supabase directly, not back into those files.
+Tables, in FK order: `creators` → `platform_accounts` → `places` → `posts`.
+
+**The initial research batch does not go through the table editor.** `seed/*.csv` carries the §5
+column headers and `supabase/seed.sql` is generated from those rows; `supabase db reset` applies
+migrations and then loads it automatically. This playbook is for everything *after* that batch:
+new creators and new posts go into Supabase directly via the table editor, not back into the CSVs
+— the CSVs stay the frozen record of the 30/08/2026 research sample.
 
 ## 0. Before you touch a row
 

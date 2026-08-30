@@ -1,8 +1,10 @@
 # Seed data
 
-Hand-curated launch inventory, collected 30/08/2026 from public Instagram post pages (logged out). Maps onto the schema in [`BACKEND_REQUIREMENTS.md`](../BACKEND_REQUIREMENTS.md) §5, the binding MVP schema.
+Hand-curated launch inventory, collected 30/08/2026 from public Instagram post pages (logged out). The CSV headers match the schema in [`BACKEND_REQUIREMENTS.md`](../BACKEND_REQUIREMENTS.md) §5 (the binding MVP schema) column-for-column, and [`../supabase/seed.sql`](../supabase/seed.sql) is generated from these rows.
 
-See [`PLAYBOOK.md`](PLAYBOOK.md) for the manual triage-and-seed process this data was collected under — the process to repeat for every new creator going forward.
+**Loading:** `supabase db reset` applies migrations then `supabase/seed.sql` automatically (`config.toml` `[db.seed]` already points at it). No table-editor work is needed for this batch. If a CSV changes, regenerate `seed.sql` from it — the CSVs are the record, `seed.sql` is the derived loader.
+
+See [`PLAYBOOK.md`](PLAYBOOK.md) for the manual triage-and-seed process this data was collected under — the process to repeat for every new creator going forward (new creators are seeded via the Supabase table editor per the playbook, not by editing these files).
 
 For a static, API-shaped local dev fixture built from this data, see [`fixtures/README.md`](fixtures/README.md).
 
@@ -16,21 +18,42 @@ For a static, API-shaped local dev fixture built from this data, see [`fixtures/
 
 ## What is and isn't filled in
 
-**Filled:** creator identity, handles, follower snapshots, post URLs, timestamps, `is_sponsored`, place names and areas, `total_mentions`, and a `content_summary` per post.
+**Filled from the research record:** creator identity, handles (normalized lowercase, `@` stripped, per §5.4), follower snapshots, `profile_url` (derived from handle), post URLs, `posted_at`, `is_sponsored`, `media_kind` (all 45 are `/p/` URLs → `post`), `ingest_status` + `excluded_reason` (split from the old `excluded:<reason>` values), `is_self_interest` (the 6 `@mingchuun` own-venue posts), place names and areas, and a `content_summary` per post.
 
-**Deliberately empty:**
+**Filled where the row's own notes clearly support it, empty otherwise:**
 
-- `provider_place_id`, `location`, `address` — no Places lookup has been run. Every place still needs matching before it can rank or show a distance.
-- `credibility_score`, `weighted_rank`, `sentiment_score` — derived, not seeded.
+- `content_type = venue_reviewer` on all 5 creators (each was triaged as one; see per-creator notes), `is_operator = true` on `@mingchuun` only.
+- `halal_status = non_halal` on Makhan By Kitchen Mafia only (the venue's own Guinness collab). Everything else stays `unknown` — creator wording like "Muslim Friendly" / "(No Pork No Alcohol)" is never translated into a status, per PLAYBOOK.md.
+- `price_band` on 4 places where a per-item/per-person price is stated (Sisters Place, KLCG, Hikiniku to Come, Meat Heaven KL). Left null where only a sharing-platter or appetizer price exists (Nale, Chilli's, Serdang stall) — the reasoning is in each row's `notes`.
+- `hours_note` on the Serdang stall ("open till ~3am", creator-reported).
+- `name_aliases = {Gepuklah}` on Gepuklah By Mingchuun.
+- `operational_status = unknown` on the Sweets by Baby pop-up (the fest has ended); `operational` elsewhere.
+- `status = draft` on every place — nothing has coordinates, and `places_published_has_coords` forbids publishing without them.
+
+**Deliberately empty (never fabricated):**
+
+- `lat`, `lng`, `provider_place_id`, `address` — no Places lookup has been run.
 - `category` — left blank rather than guessed.
+- `bio`, `maps_list_url`, `avatar_*`, `photo_*` provenance, `thumbnail_url`, `external_id` — not collected; media handoff is PLAYBOOK.md §3.
 
-This data predates the consolidated schema's fold-in columns: `content_type`, `is_operator`, `is_active`, `maps_list_url` on creators; `halal_status`, `price_band`, `hours_note`, `name_aliases`, and photo provenance (`photo_source`, `photo_source_url`, `photo_credit`, `photo_fetched_at`) on places. Facts these columns would hold — e.g. `@mingchuun`'s operator status — live here only as prose in `seed_score_notes`. `seed/PLAYBOOK.md` governs how new seeding records them as real columns instead.
+**Two non-schema columns on `posts.csv`**, kept because they cost nothing and would be expensive to recover: `resolved_by` (which signal identified the place) and `location_tag_kind` (whether the tag named the venue, an area, an event, or a relative description). `seed.sql` does not load them.
 
-**Two non-schema columns on `posts.csv`**, kept because they cost nothing and would be expensive to recover: `resolved_by` (which signal identified the place) and `location_tag_kind` (whether the tag named the venue, an area, an event, or a relative description). Drop them at import if unwanted.
+## Data gaps — needed before any place can be published
+
+Human collection checklist; `places_published_has_coords` blocks publishing until at least the coordinates exist:
+
+- [ ] **`lat`/`lng` for all 27 places** — hard blocker for `status = published`.
+- [ ] **`provider_place_id`** (Google Place ID) via Places lookup — stays null forever only for venues Google doesn't list (the two unnamed stalls, the pop-up).
+- [ ] **`address`** for all 27 places (KLCG's is recoverable from its caption; the claypot place has two — pick per-outlet handling first).
+- [ ] **A photo per place** + provenance (`photo_source`, `photo_source_url`, `photo_credit`, `photo_fetched_at`) uploaded to Storage — PLAYBOOK.md §3; the playbook requires a photo before publishing.
+- [ ] **`category`** per place — currently all blank.
+- [ ] **Resolve the two unnamed venues and the multi-outlet claypot row** (real names / split into per-outlet rows) and decide whether out-of-area rows (Bangi, Shah Alam) stay `draft` or are dropped.
+- [ ] **Avatars for the 5 creators** (`avatar_url` + provenance).
+- [ ] **Verify halal status** where it matters — everything except Makhan is `unknown`.
 
 ## How the 45 posts break down
 
-27 are genuine venue visits; 18 are not — 7 sponsored, 6 self-interest, 2 personal, 2 out-of-scope, 1 not-a-restaurant. Excluded posts are kept with `ingest_status = excluded:<reason>` and a null `place_id`, so the exclusion is auditable rather than invisible.
+27 are genuine venue visits; 18 are not — 7 sponsored, 6 self-interest, 2 personal, 2 out-of-scope, 1 not-a-restaurant. Excluded posts are kept with `ingest_status = excluded`, the reason in `excluded_reason`, and a null `place_id`, so the exclusion is auditable rather than invisible.
 
 Of the 27 venue posts, 22 were resolved by the Instagram location tag alone or in combination — **81%**. Three were resolvable only from hashtags, one only from an @-mention, one not at all.
 
@@ -44,7 +67,7 @@ Of the 27 venue posts, 22 were resolved by the Instagram location tag alone or i
 | `@tomato_ate_it` | 4 / 11 |
 | `@mingchuun` | **0 / 6** |
 
-`@mingchuun` owns Gepuklah and every sampled post was about his own venue. He is kept in `creators.csv` with that recorded in `seed_score_notes`, but no place in this seed comes from him. Gepuklah itself is present — sourced from `@nomnomswithta`, who visited independently and gave it a mixed verdict.
+`@mingchuun` owns Gepuklah and every sampled post was about his own venue. He is kept in `creators.csv` with `is_operator = true` and that history in `notes`, but no place in this seed comes from him. Gepuklah itself is present — sourced from `@nomnomswithta`, who visited independently and gave it a mixed verdict.
 
 ## Known edge cases in `places.csv`
 
@@ -54,7 +77,7 @@ Of the 27 venue posts, 22 were resolved by the Instagram location tag alone or i
 
 ## Halal
 
-Not populated. Several captions carry the creator's own wording — *"Muslim Friendly"*, *"(No Pork No Alcohol)"* — and one venue serves Guinness. These are preserved verbatim in `content_summary` and `seed_note` as claims by the creator, never as a verified status.
+`unknown` everywhere except Makhan By Kitchen Mafia (`non_halal`, from the venue's own Guinness collab). Several captions carry the creator's own wording — *"Muslim Friendly"*, *"(No Pork No Alcohol)"* — preserved verbatim in `content_summary` and `notes` as claims by the creator, never as a verified status.
 
 ## Caveats
 
