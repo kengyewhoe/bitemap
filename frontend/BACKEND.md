@@ -33,7 +33,7 @@ The screens in `frontend/` currently run on mock data (`js/mock.js`) + `localSto
 
 | Action | Method | Path | Notes |
 |---|---|---|---|
-| Nearby pins | GET | `/places/nearby?lat=&lng=&radius_km=5` | Same call feeds the list screen (`discovery.html`) — one endpoint, two renderings. |
+| Nearby pins + list | GET | `/places/nearby?lat=&lng=&radius_km=5` | One call feeds the map pins **and** the list sheet on the same screen — one endpoint, two renderings. |
 | Recenter | client | — | Re-call nearby with the new `lat`/`lng`. |
 | Place peek | — | *(no `/places/:id/preview` in MVP)* | Use the nearby item's own fields (`good_pct`, `mention_count`, `latest_mention`) for the map's peek card — don't fetch place detail until the user taps through. |
 
@@ -73,6 +73,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 2,
       "good_pct": 90,
       "mention_count": 3,
+      "last_mentioned_at": "2026-08-21T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/since-then.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Tom yum is the must-order. Comfort repeat." }
     },
@@ -91,6 +92,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 4,
       "good_pct": 56,
       "mention_count": 2,
+      "last_mentioned_at": "2026-08-14T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/gepuklah.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Mixed verdict: worth trying, not worth the queue." }
     },
@@ -109,6 +111,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 1,
       "good_pct": 86,
       "mention_count": 1,
+      "last_mentioned_at": "2026-07-30T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/two-fold-coffee.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Shio pan; eat hot. Repeat visitor, near home." }
     }
@@ -119,14 +122,22 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
 
 `good_pct` is `null` below 5 ratings — render "Baru — not enough ratings yet," not "0%" or a hidden meter. If `fallback: "kl_trending"` comes back, the items are still real KL places (city-wide, not empty) — render them the same way, no special empty state.
 
-### Nearby list (`discovery.html`)
+### Nearby list, search & filters (`home.html` list sheet)
 
-Same call as home, same response — **no separate endpoint and no filter query params.** The mock's `halal`/`non` filter chips, and any `q=`/`sort=` you might reach for, are **client-side filters over the `items` array already returned**, not request params:
+*(`discovery.html` was removed; its list and filters now live in the `home.html` sheet.)*
 
-- Halal chip: filter client-side on `halal_status` (`jakim_certified`/`muslim_owned`/`pork_free` vs `non_halal`/`unknown`) — do not send `?halal=true`.
-- No search box, no sort dropdown in MVP — the array already arrives sorted `distance_km ASC, mention_count DESC`.
+Same call as the pins, same response — **no separate endpoint and no filter query params.** The sheet's search box, diet chips, category chips, and sort dropdown are all **client-side operations over the `items` array already returned**, not request params:
 
-**Change from the mock:** `discovery.html` currently filters on a boolean `p.halal`. Swap to the `halal_status` enum (5 values, not a boolean) and update the chip labels/logic accordingly — `unknown` renders plainly, never as "Non-halal."
+- Search box: filter client-side on `name`/`area` — do not send `?q=`.
+- Diet chip: filter client-side on `halal_status` (`jakim_certified`/`muslim_owned`/`pork_free` vs `non_halal`/`unknown`) — do not send `?halal=true`.
+- Category chip: filter client-side on `category` — do not send `?category=`.
+- Sort "Distance": `distance_km ASC` (the array's arrival order is already `distance_km ASC, mention_count DESC`).
+- Sort "Recent": `last_mentioned_at` DESC — this field is in the item DTO for exactly this sort (the mock calls it `mentionedAt`; rename when wiring).
+- Sort "Best": **must not sort by `good_pct`** — the locked contract rule is that ratings never affect ordering. "Best" = the array's arrival order (`distance_km ASC, mention_count DESC`). The current mock sorts "Best" by `goodPct` — that's a mock bug to fix during wiring, not behavior to reproduce.
+
+**Change from the mock:** the diet chips currently filter on a boolean `p.halal`. Swap to the `halal_status` enum (5 values, not a boolean) and update the chip labels/logic accordingly — `unknown` renders plainly, never as "Non-halal."
+
+The sheet's **Following** tab (Trending / New) has **no server support in MVP** — there is no `followed=1` param and no `/me/following/*` route. It keeps running on `localStorage` follows over mock data until `follows` ships (see Parked below).
 
 Save/unsave stays exactly as the mock has it — `localStorage` only, no server call (`saves` is deferred, see Parked below).
 
@@ -285,10 +296,10 @@ These screens/features stay in the repo, unwired, for when their tables come bac
 
 | Screen / feature | Deferred as |
 |---|---|
-| `follow.html` | Follow onboarding — no `follows` table or `/me/following/*` route in MVP. |
+| `follow.html`, Following tab (`home.html`) | Follow onboarding + followed-creators feed — no `follows` table, `/me/following/*` route, or `followed=1` param in MVP. The tab stays `localStorage`/mock-fed. |
 | `influencers.html` | Creator directory / leaderboard — no `/creators` or `/creators/leaderboard` route in MVP. |
 | `influencer.html` | Creator profile — no `/creators/:id` route in MVP. |
-| Save button (`discovery.html`, `place.html`) | Stays `localStorage`-only — no server `saves` table or `/me/saves/*` route in MVP. |
+| Save button (`home.html` list, `place.html`) + `saved.html` | Stays `localStorage`-only — no server `saves` table or `/me/saves/*` route in MVP. `saved.html` renders from `localStorage` over the place data already fetched. |
 
 Do not remove these files or their nav entries as dead links — they're future screens, not cut ones. If the nav needs to hide them from the MVP tab bar, that's a nav-config change, not a file deletion.
 
@@ -311,7 +322,7 @@ Video hosting, live scrapers, visit geofencing, claim admin UI, follows/leaderbo
 ## Suggested build order
 
 1. Supabase Auth (Google) + `GET /me`.
-2. `GET /places/nearby` → wire `home.html` (with the `heat` → chili/mango/lime mapping) and `discovery.html` (client-side filters only).
+2. `GET /places/nearby` → wire `home.html` pins + list sheet (with the `heat` → chili/mango/lime mapping; search/filters/sort stay client-side, and fix the "Best"-sorts-by-`goodPct` mock bug while there).
 3. `GET /places/:id` + `GET /places/:id/posts` → `place.html`, including the tap-to-load Instagram embed and the Waze/Maps deeplinks.
 4. `POST /places/:id/ratings` + `GET /places/:id/ratings/me` → `rate.html`, with real lock/409 handling.
 5. Swap `seed/fixtures/nomnomswithta.json` for live `fetch()` calls once the API is deployed.

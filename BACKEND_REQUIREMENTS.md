@@ -549,6 +549,7 @@ Timestamps in all JSON below are ISO 8601 (`2026-08-26T09:12:00+08:00`); `DD/MM/
 3. If fewer than 3 rows come back, re-run the same query with `radius_km = 65` (city-wide "trending") and set `fallback: "kl_trending"`. Otherwise `fallback: null`. 65 km comfortably exceeds the KL bounding box's own diagonal — south `2.90`/north `3.30` by west `101.50`/east `101.90` spans roughly 44 km north-south and 44 km east-west at this latitude, for a corner-to-corner diagonal of ~63 km — so a 65 km radius from any point inside the box covers the whole box.
 4. `good_pct`: null if `good_count + bad_count < 5`, else `round(100 * good_count / (good_count + bad_count))`.
 5. `thumbnail_url` in the item DTO below is `place_cards.photo_url` (see §5.8/§6) — already `null` when the place's `photo_visible = false`, no extra check needed here.
+6. `last_mentioned_at` passes through from `place_cards` (§5.8) so the FE's list sheet can offer a client-side "Recent" sort. The server itself never sorts by it — response order is always `distance_km ASC, mention_count DESC` — and there is no `sort=` query param. Search, halal, and category filters are likewise client-side over the returned `items`, never query params.
 
 **Request:**
 
@@ -576,6 +577,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 2,
       "good_pct": 90,
       "mention_count": 3,
+      "last_mentioned_at": "2026-08-21T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/since-then.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Tom yum is the must-order. Comfort repeat." }
     },
@@ -594,6 +596,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 4,
       "good_pct": 56,
       "mention_count": 2,
+      "last_mentioned_at": "2026-08-14T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/gepuklah.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Mixed verdict: worth trying, not worth the queue." }
     },
@@ -612,6 +615,7 @@ GET /places/nearby?lat=3.1287&lng=101.6788&radius_km=5
       "bad_count": 1,
       "good_pct": 86,
       "mention_count": 1,
+      "last_mentioned_at": "2026-07-30T00:00:00+08:00",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/places/two-fold-coffee.jpg",
       "latest_mention": { "handle": "@nomnomswithta", "quote": "Shio pan; eat hot. Repeat visitor, near home." }
     }
