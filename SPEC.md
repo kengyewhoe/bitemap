@@ -4,8 +4,7 @@
 > **Launch:** Kuala Lumpur metro · mobile web (PWA-first)  
 > **Sources:** [`archive/SPEC.md`](archive/SPEC.md) (original technical outline) + [`archive/Ryan_draft.md`](archive/Ryan_draft.md) (locked product decisions, 2026-08-30)  
 > **One-liner:** Right-now KL food map + community ranker for food influencers. Viral clips → real places → Legit vs Hype.  
-> **Companion doc:** [`SPEC_V1.md`](SPEC_V1.md) — a narrower, later v1 scope cap (Klang Valley, halal/price bands, hand-seeded content).  
-> The two are **not yet consolidated** and disagree on entity naming (`creators`/`places`/`posts` here vs `influencers`/`venues`/`recommendations` there) and on scope. Consolidation is pending a review round.
+> **Governance (30/08/2026):** SPEC.md is the product spec; the MVP build scope is **§8**, as amended by the **"MVP cut (agreed 30/08/2026)"** subsection at its top. [`SPEC_V1.md`](SPEC_V1.md) is retained as research input — its domain learnings (halal enum, creator taxonomy, media provenance) are folded into [`BACKEND_REQUIREMENTS.md`](BACKEND_REQUIREMENTS.md); its scope and naming do not govern.
 
 ---
 
@@ -138,6 +137,33 @@ Restaurant and post/clip are **pages or sheets**, not tabs.
 ---
 
 ## 8. MVP scope
+
+### MVP cut (agreed 30/08/2026)
+
+Owner decision, narrowing this section for the first build. Where it conflicts with the rest of §8 (or with §12), this subsection wins.
+
+**IN**
+
+| Area | Requirement |
+|---|---|
+| Auth | Google sign-in (Supabase Auth). No email OTP. |
+| Location | Device location, or KL fallback. |
+| Nearby + list | `GET /places/nearby` feeds both the map home pins and the list. |
+| Place detail | `GET /places/:id` + `GET /places/:id/posts` — IG embeds, tap-to-load. |
+| Rating | `POST /places/:id/ratings` — Good/Bad on a **place**, one per user per place, lock after submit (second vote → `409`). |
+| Account | `GET /me`. |
+
+**OUT (deferred, not deleted)**
+
+- Follows, leaderboard, influencer profile screens (`influencer.html`, `influencers.html`, `follow.html` parked, not removed).
+- Claims, reports, server-side saves (stays localStorage).
+- Credibility scoring — UI shows mention counts instead.
+- Email OTP auth, Redis, background jobs, oEmbed refresh pipeline, PostGIS, NestJS, LLM calls.
+- Ops endpoints / admin UI — seeding is via Supabase table editor.
+
+**Stack for MVP:** Supabase (Postgres, Auth Google provider, Storage) + Next.js route handlers, on Vercel. Plain `lat`/`lng` doubles + haversine in SQL (hundreds of rows) — PostGIS deferred. **§12's stack table is superseded by this subsection for MVP.**
+
+---
 
 ### In
 

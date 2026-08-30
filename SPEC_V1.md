@@ -1,10 +1,9 @@
 # BiteMap — v1 Specification
 
-> **Status:** v1 scope, locked
+> **Status:** Research spec — superseded 30/08/2026. Scope and naming governed by [`SPEC.md`](SPEC.md) + [`BACKEND_REQUIREMENTS.md`](BACKEND_REQUIREMENTS.md); the halal/price/creator-taxonomy/media rules here were folded into `BACKEND_REQUIREMENTS.md`; §8 seeding method lives on as `seed/PLAYBOOK.md`.
 > **One-liner:** Find good makan near you, and say whether it was worth it.
 > **Market:** Klang Valley only (KL, PJ, Subang, Cheras, Puchong).  
-> **Companion doc:** [`SPEC.md`](SPEC.md) — the broader product spec (claim flow, sponsored/trust layer, success metrics, rollout), paired with [`BACKEND_REQUIREMENTS.md`](BACKEND_REQUIREMENTS.md).  
-> The two are **not yet consolidated** and disagree on entity naming (`influencers`/`venues`/`recommendations` here vs `creators`/`places`/`posts` there) and on scope. Consolidation is pending a review round.
+> **Companion doc:** [`SPEC.md`](SPEC.md) — the broader product spec (claim flow, sponsored/trust layer, success metrics, rollout), paired with [`BACKEND_REQUIREMENTS.md`](BACKEND_REQUIREMENTS.md).
 
 ---
 
