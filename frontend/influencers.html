@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Influencers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-sheet-background text-sheet-on-surface font-body-md min-h-screen flex flex-col">
+    <header class="bg-background/90 backdrop-blur-md fixed top-0 w-full z-50 border-b border-surface-variant px-margin-mobile py-4 flex items-center">
+      <h1 class="font-headline-sheet text-headline-sheet text-primary flex-1 text-center">BiteMap</h1>
+    </header>
+    <main class="flex-1 overflow-y-auto hide-scrollbar pt-[88px] pb-[100px] px-margin-mobile max-w-2xl mx-auto w-full">
+      <h2 class="font-headline-sheet text-headline-sheet mb-2">Curate your following</h2>
+      <p class="text-sheet-on-surface-muted mb-6">Follow local experts to personalize the map.</p>
+      <div class="relative mb-6">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-sheet-on-surface-muted">search</span>
+        <input id="q" type="search" placeholder="Search influencers…" class="w-full bg-sheet-surface border border-sheet-outline rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:border-primary-container" />
+      </div>
+      <div id="list" class="grid gap-4"></div>
+    </main>
+    <div id="app-nav"></div>
+    <script type="module">
+      import { creators } from "./js/mock.js";
+      import { mountNav } from "./js/nav.js";
+      import { getSession, setSession } from "./js/session.js";
+      mountNav("influencers");
+      const following = new Set(getSession()?.following || creators.filter((c) => c.following).map((c) => c.id));
+      function render() {
+        const term = document.getElementById("q").value.toLowerCase();
+        document.getElementById("list").innerHTML = creators
+          .filter((c) => !term || c.handle.toLowerCase().includes(term) || c.tags.toLowerCase().includes(term))
+          .map((c) => {
+            const on = following.has(c.id);
+            return `<div class="bg-sheet-surface rounded-xl p-4 border border-sheet-outline flex items-center gap-4">
+              <a href="./influencer.html?id=${c.id}"><img src="${c.avatar}" alt="" class="w-16 h-16 rounded-full object-cover ${on ? "border-2 border-primary-container" : ""}" /></a>
+              <a href="./influencer.html?id=${c.id}" class="flex-1 min-w-0">
+                <h3 class="font-title-md text-title-md truncate">${c.handle}</h3>
+                <p class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase">${c.tags}</p>
+              </a>
+              <button data-id="${c.id}" class="follow shrink-0 px-4 py-2 rounded-xl font-semibold text-sm ${on ? "bg-sheet-surface-low" : "bg-primary-container text-white"}">${on ? "Following" : "Follow"}</button>
+            </div>`;
+          })
+          .join("");
+        document.querySelectorAll(".follow").forEach((btn) => {
+          btn.onclick = () => {
+            const id = btn.dataset.id;
+            if (following.has(id)) following.delete(id);
+            else following.add(id);
+            setSession({ following: [...following] });
+            render();
+          };
+        });
+      }
+      document.getElementById("q").oninput = render;
+      render();
+    </script>
+  </body>
+</html>

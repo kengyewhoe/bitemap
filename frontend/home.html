@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Home</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-map-background h-screen w-screen overflow-hidden font-body-md relative">
+    <div class="absolute inset-0 z-0">
+      <img class="absolute inset-0 w-full h-full object-cover opacity-80" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
+      <div class="absolute inset-0 bg-map-background/50"></div>
+    </div>
+    <button type="button" class="absolute top-margin-mobile right-margin-mobile w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface z-20" title="Recenter">
+      <span class="material-symbols-outlined">my_location</span>
+    </button>
+    <div id="pins" class="absolute inset-0 z-10"></div>
+    <div class="absolute bottom-[80px] w-full z-30 md:w-[400px] md:right-margin-desktop md:bottom-margin-desktop md:left-auto">
+      <div id="sheet" class="bg-sheet-surface rounded-t-[24px] md:rounded-[24px] p-sheet-padding shadow-[0_-4px_24px_rgba(0,0,0,0.1)] border border-sheet-outline"></div>
+    </div>
+    <div id="app-nav"></div>
+    <script type="module">
+      import { places } from "./js/mock.js";
+      import { mountNav } from "./js/nav.js";
+      mountNav("map");
+      const positions = [
+        { top: "35%", left: "20%" },
+        { top: "48%", left: "58%" },
+        { top: "28%", left: "70%" },
+      ];
+      let selected = places[0].id;
+      function pinColor(p) {
+        return p.heat === "chili" ? "bg-map-chili shadow-map-chili" : p.heat === "lime" ? "bg-map-lime" : "bg-map-mango shadow-map-mango";
+      }
+      function renderPins() {
+        document.getElementById("pins").innerHTML = places
+          .map((p, i) => {
+            const on = p.id === selected;
+            const pos = positions[i];
+            return `<button data-id="${p.id}" class="absolute flex flex-col items-center" style="top:${pos.top};left:${pos.left}">
+              <span class="relative flex items-center justify-center">
+                ${on ? '<span class="absolute w-8 h-8 rounded-full border-2 border-map-lime pulse-ring"></span>' : ""}
+                <span class="w-5 h-5 rounded-full ${pinColor(p)} map-pin-glow z-10 border-2 border-map-surface ${on ? "glow-mango" : ""}"></span>
+              </span>
+              <span class="mt-1 bg-map-surface/90 text-map-on-surface px-2 py-0.5 rounded border border-map-outline font-map-pin text-map-pin ${on ? "text-map-mango font-bold" : ""}">${p.name}</span>
+            </button>`;
+          })
+          .join("");
+        document.querySelectorAll("#pins [data-id]").forEach((el) => {
+          el.onclick = () => {
+            selected = el.dataset.id;
+            renderPins();
+            renderSheet();
+          };
+        });
+      }
+      function renderSheet() {
+        const p = places.find((x) => x.id === selected);
+        document.getElementById("sheet").innerHTML = `
+          <div class="w-12 h-1.5 bg-sheet-outline rounded-full mx-auto mb-6 md:hidden"></div>
+          <h2 class="font-headline-sheet text-headline-sheet text-tertiary-dark mb-1">${p.name}</h2>
+          <p class="font-body-md text-sheet-on-surface-muted mb-gutter">${p.area} · ${p.km} km</p>
+          <div class="flex items-center justify-between mb-gutter bg-sheet-surface-low rounded-xl p-3 border border-sheet-outline">
+            <div>
+              <span class="text-sm font-semibold text-secondary">${p.goodPct}% Good</span>
+              <div class="w-24 h-1.5 bg-surface-variant rounded-full overflow-hidden mt-1"><div class="h-full bg-secondary" style="width:${p.goodPct}%"></div></div>
+            </div>
+            <div class="flex gap-1 bg-sheet-surface rounded-lg p-1 border border-sheet-outline">
+              <a href="./rate.html?place=${p.id}" class="px-3 py-1.5 rounded-md font-semibold text-sm flex items-center gap-1"><span class="material-symbols-outlined text-[18px]">thumb_up</span> Good</a>
+              <a href="./rate.html?place=${p.id}" class="px-3 py-1.5 rounded-md font-semibold text-sm text-sheet-on-surface-muted flex items-center gap-1"><span class="material-symbols-outlined text-[18px]">thumb_down</span> Bad</a>
+            </div>
+          </div>
+          <a href="./place.html?id=${p.id}" class="block w-full text-center bg-primary-container text-on-primary rounded-[16px] py-3.5 font-title-md font-bold mb-gutter">Directions / details</a>
+          <a href="./place.html?id=${p.id}" class="rounded-[16px] bg-sheet-surface-low border border-sheet-outline p-3 flex gap-3 items-center">
+            <img src="${p.thumb}" alt="" class="w-16 h-16 rounded-xl object-cover" />
+            <div>
+              <p class="text-[14px] line-clamp-2">“${p.mentionedBy.quote}”</p>
+              <p class="text-xs text-sheet-on-surface-muted">${p.mentionedBy.handle}</p>
+            </div>
+          </a>`;
+      }
+      renderPins();
+      renderSheet();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Place</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-map-background min-h-screen relative overflow-hidden font-body-md">
+    <img class="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
+    <div class="fixed top-0 left-0 z-40 p-margin-mobile w-full flex justify-between">
+      <a href="./home.html" class="bg-[#323232] text-white w-10 h-10 rounded-full flex items-center justify-center"><span class="material-symbols-outlined">arrow_back</span></a>
+      <button type="button" id="save" class="bg-[#323232] text-white w-10 h-10 rounded-full flex items-center justify-center"><span class="material-symbols-outlined">bookmark</span></button>
+    </div>
+    <div class="fixed bottom-0 left-0 w-full z-50 md:max-w-md md:left-1/2 md:-translate-x-1/2">
+      <div class="bg-white w-full rounded-t-[32px] border border-sheet-outline flex flex-col max-h-[85vh] overflow-hidden">
+        <div class="w-full flex justify-center py-3"><div class="w-12 h-1.5 bg-[#E0E0E0] rounded-full"></div></div>
+        <div id="body" class="overflow-y-auto hide-scrollbar pb-36 px-sheet-padding"></div>
+        <div class="absolute bottom-0 w-full bg-white p-margin-mobile pb-8 space-y-3" id="actions"></div>
+      </div>
+    </div>
+    <script type="module">
+      import { getPlace } from "./js/mock.js";
+      import { getSession, setSession } from "./js/session.js";
+      const id = new URLSearchParams(location.search).get("id") || "kin-kin";
+      const p = getPlace(id);
+      document.title = `BiteMap — ${p.name}`;
+      const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + " " + p.address)}`;
+      document.getElementById("body").innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <h1 class="font-headline-sheet text-headline-sheet text-[#191C1E] pr-2">${p.name}</h1>
+          <div class="bg-[#FBE9E7] text-[#D84315] px-2 py-1 rounded flex items-center gap-1 text-sm font-semibold">${p.stars}</div>
+        </div>
+        <div class="flex flex-wrap gap-3 text-[#5A6570] mb-4 text-sm">
+          <span>${p.category}</span><span>${p.price}</span><span>${p.walkMin} min walk</span>
+        </div>
+        <p class="text-[#5A6570] leading-relaxed mb-6">${p.blurb}</p>
+        <h2 class="font-title-md text-title-md mb-3">As seen on</h2>
+        <a href="#" class="block bg-[#F8FAFC] rounded-2xl border border-sheet-outline p-3 mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="font-title-md text-[14px]">${p.mentionedBy.handle}</div>
+            <div class="text-[12px] text-[#5A6570]">oEmbed / open original</div>
+          </div>
+          <img src="${p.thumb}" alt="" class="w-full h-36 object-cover rounded-xl" />
+        </a>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-[#F8FAFC] p-4 rounded-2xl border border-sheet-outline"><div class="font-title-md text-[14px] mb-1">Hours</div><div class="text-[14px] text-[#5A6570]">${p.hours}</div></div>
+          <div class="bg-[#F8FAFC] p-4 rounded-2xl border border-sheet-outline"><div class="font-title-md text-[14px] mb-1">Address</div><div class="text-[14px] text-[#5A6570]">${p.address}</div></div>
+        </div>`;
+      document.getElementById("actions").innerHTML = `
+        <a href="./rate.html?place=${p.id}" class="block w-full text-center bg-surface-variant text-primary rounded-xl py-4 font-title-md">I tried this</a>
+        <a href="${maps}" target="_blank" rel="noopener" class="block w-full text-center bg-[#FF6B00] text-white rounded-xl py-4 font-title-md">Directions</a>`;
+      document.getElementById("save").onclick = () => {
+        const s = new Set(getSession()?.saved || []);
+        if (s.has(p.id)) s.delete(p.id);
+        else s.add(p.id);
+        setSession({ saved: [...s] });
+      };
+    </script>
+  </body>
+</html>

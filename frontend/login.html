@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-map-background min-h-screen w-full flex items-center justify-center relative overflow-hidden font-body-md text-body-md">
+    <div class="absolute inset-0 z-0">
+      <div class="absolute inset-0 bg-map-background/70 z-10"></div>
+      <img class="w-full h-full object-cover opacity-70 scale-105" alt="" src="https://images.unsplash.com/photo-1533050487297-09b450131914?w=1400&q=80" />
+    </div>
+    <main class="relative z-20 w-full max-w-[420px] px-margin-mobile">
+      <div class="bg-sheet-surface rounded-[24px] p-sheet-padding border border-sheet-outline shadow-[0_16px_40px_-8px_rgba(0,0,0,0.3)] flex flex-col items-center text-center">
+        <div class="w-16 h-16 rounded-full bg-map-mango flex items-center justify-center mb-6 text-map-background font-display-map text-2xl">B</div>
+        <h1 class="font-headline-sheet text-headline-sheet text-sheet-on-surface tracking-tight mb-2">Welcome back to the heat</h1>
+        <p class="font-body-md text-body-md text-sheet-on-surface-muted mb-8">Log in to find what’s actually legit.</p>
+        <form id="login-form" class="w-full flex flex-col gap-4 text-left">
+          <label class="font-label-caps text-label-caps text-sheet-on-surface uppercase" for="email">Email address</label>
+          <input id="email" type="email" required placeholder="you@email.com" class="w-full bg-sheet-surface-low border border-sheet-outline rounded-[16px] px-4 py-3 font-body-md text-body-md text-sheet-on-surface focus:outline-none focus:border-primary-container" />
+          <p id="err" class="hidden text-error text-sm"></p>
+          <button type="submit" class="w-full mt-2 bg-primary-container text-white font-title-md text-title-md py-4 rounded-[16px] active:scale-[0.98]">Continue with Email</button>
+        </form>
+        <div class="w-full flex items-center gap-4 my-6">
+          <div class="h-px bg-sheet-outline flex-1"></div>
+          <span class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase">or</span>
+          <div class="h-px bg-sheet-outline flex-1"></div>
+        </div>
+        <button id="google" type="button" class="w-full bg-sheet-surface border border-sheet-outline text-sheet-on-surface font-title-md text-title-md py-4 rounded-[16px] active:scale-[0.98]">Sign in with Google</button>
+        <p class="font-body-md text-sheet-on-surface-muted mt-8">Don’t have an account? <a class="text-primary-container font-medium" href="./login.html">Sign up</a></p>
+      </div>
+    </main>
+    <script type="module">
+      import { setSession } from "./js/session.js";
+      function go() {
+        setSession({ userId: "u1", email: document.getElementById("email").value || "ahmad.z@email.com" });
+        location.href = "./location.html";
+      }
+      document.getElementById("login-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        go();
+      });
+      document.getElementById("google").addEventListener("click", go);
+    </script>
+  </body>
+</html>

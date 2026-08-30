@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Follow the heat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-sheet-surface text-sheet-on-surface antialiased min-h-screen flex flex-col font-body-md">
+    <header class="flex items-center justify-between px-sheet-padding pt-8 pb-4 sticky top-0 bg-sheet-surface z-10">
+      <a href="./location.html" class="w-10 h-10 rounded-full flex items-center justify-center bg-sheet-surface-low"><span class="material-symbols-outlined">arrow_back</span></a>
+      <a href="./home.html" class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase tracking-widest">Skip</a>
+    </header>
+    <main class="flex-1 px-sheet-padding pt-4 pb-32 overflow-y-auto hide-scrollbar">
+      <h1 class="font-headline-sheet text-headline-sheet text-on-tertiary-container mb-2">Follow the heat</h1>
+      <p class="font-body-md text-sheet-on-surface-muted mb-8">Choose your expert friends to see what’s actually legit in KL.</p>
+      <div class="relative mb-8">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-sheet-on-surface-muted">search</span>
+        <input id="q" type="search" placeholder="Search influencers…" class="w-full bg-sheet-surface-low border border-sheet-outline rounded-2xl py-4 pl-12 pr-4 font-body-md focus:outline-none focus:border-primary-container" />
+      </div>
+      <div id="list" class="grid grid-cols-1 gap-gutter"></div>
+    </main>
+    <div class="fixed bottom-0 left-0 w-full bg-gradient-to-t from-sheet-surface via-sheet-surface to-transparent pt-12 pb-8 px-sheet-padding">
+      <button id="done" class="w-full bg-primary-container text-white rounded-[16px] py-4 font-title-md text-title-md">See the map</button>
+    </div>
+    <script type="module">
+      import { creators } from "./js/mock.js";
+      import { setSession, getSession } from "./js/session.js";
+      const following = new Set(getSession()?.following || creators.filter((c) => c.following).map((c) => c.id));
+      const list = document.getElementById("list");
+      const q = document.getElementById("q");
+      function render() {
+        const term = q.value.toLowerCase();
+        list.innerHTML = creators
+          .filter((c) => !term || c.handle.toLowerCase().includes(term) || c.tags.toLowerCase().includes(term))
+          .map((c) => {
+            const on = following.has(c.id);
+            return `<div class="bg-sheet-surface-low rounded-2xl p-4 flex items-center gap-4 border border-sheet-outline">
+              <img src="${c.avatar}" alt="" class="w-16 h-16 rounded-full object-cover" />
+              <div class="flex-1 min-w-0">
+                <h3 class="font-title-md text-[16px] truncate">${c.handle}</h3>
+                <p class="text-[13px] text-sheet-on-surface-muted truncate">${c.bio}</p>
+              </div>
+              <button data-id="${c.id}" class="follow-btn shrink-0 px-4 py-2 rounded-full font-label-caps text-label-caps uppercase ${on ? "bg-primary-container text-white" : "border border-primary-container text-primary-container"}">${on ? "Following" : "Follow"}</button>
+            </div>`;
+          })
+          .join("");
+        list.querySelectorAll(".follow-btn").forEach((btn) => {
+          btn.onclick = () => {
+            const id = btn.dataset.id;
+            if (following.has(id)) following.delete(id);
+            else following.add(id);
+            render();
+          };
+        });
+      }
+      q.oninput = render;
+      render();
+      document.getElementById("done").onclick = () => {
+        setSession({ following: [...following], onboarded: true });
+        location.href = "./home.html";
+      };
+    </script>
+  </body>
+</html>

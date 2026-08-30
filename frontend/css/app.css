@@ -1,0 +1,43 @@
+body {
+  -webkit-tap-highlight-color: transparent;
+  min-height: max(884px, 100dvh);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.map-pin-glow {
+  box-shadow: 0 0 12px 4px var(--tw-shadow-color);
+}
+
+.pulse-ring {
+  animation: pin-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes pin-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.5);
+  }
+}
+
+.glow-mango {
+  box-shadow: 0 0 20px rgba(255, 176, 32, 0.4);
+}
+.glow-chili {
+  box-shadow: 0 0 20px rgba(255, 59, 48, 0.4);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}

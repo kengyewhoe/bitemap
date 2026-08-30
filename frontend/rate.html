@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Rate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-map-background font-body-md overflow-hidden">
+    <div class="fixed inset-0 z-0 bg-map-background/80 backdrop-blur-sm"></div>
+    <main class="relative z-10 flex h-screen w-full flex-col items-center justify-end px-margin-mobile pb-margin-mobile">
+      <div class="w-full max-w-md bg-sheet-surface rounded-t-[24px] border border-sheet-outline overflow-hidden">
+        <div class="w-full flex justify-center pt-3 md:hidden"><div class="w-12 h-1.5 bg-sheet-on-surface-muted/20 rounded-full"></div></div>
+        <div class="p-sheet-padding">
+          <p class="text-sheet-on-surface-muted mb-6 text-sm">You had <span id="name" class="font-semibold text-sheet-on-surface"></span></p>
+          <h1 class="font-headline-sheet text-headline-sheet mb-8">Was it legit?</h1>
+          <div class="flex bg-sheet-surface-low p-1 rounded-xl border border-sheet-outline mb-6">
+            <button id="good" type="button" class="flex-1 py-3 rounded-lg font-title-md text-sm bg-sheet-surface shadow-sm">Good</button>
+            <button id="bad" type="button" class="flex-1 py-3 rounded-lg font-title-md text-sm text-sheet-on-surface-muted">Bad</button>
+          </div>
+          <div class="flex items-center space-x-3 mb-10 bg-secondary-container/20 p-3 rounded-lg">
+            <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">verified</span>
+            <p id="stats" class="text-sm text-secondary"></p>
+          </div>
+          <p id="msg" class="hidden text-sm text-error mb-3"></p>
+          <button id="submit" class="w-full bg-primary-container text-on-primary font-title-md py-4 rounded-xl">Submit</button>
+        </div>
+      </div>
+    </main>
+    <script type="module">
+      import { getPlace } from "./js/mock.js";
+      import { getSession, setSession } from "./js/session.js";
+      const placeId = new URLSearchParams(location.search).get("place") || "kin-kin";
+      const p = getPlace(placeId);
+      document.getElementById("name").textContent = p.name;
+      document.getElementById("stats").innerHTML = `<strong>${p.goodPct}% Good</strong> · ${p.ratingCount} ratings`;
+      let vote = "good";
+      const good = document.getElementById("good");
+      const bad = document.getElementById("bad");
+      function paint() {
+        good.className = "flex-1 py-3 rounded-lg font-title-md text-sm " + (vote === "good" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
+        bad.className = "flex-1 py-3 rounded-lg font-title-md text-sm " + (vote === "bad" ? "bg-sheet-surface shadow-sm text-sheet-on-surface" : "text-sheet-on-surface-muted");
+      }
+      good.onclick = () => {
+        vote = "good";
+        paint();
+      };
+      bad.onclick = () => {
+        vote = "bad";
+        paint();
+      };
+      document.getElementById("submit").onclick = () => {
+        const votes = { ...(getSession()?.votes || {}) };
+        if (votes[placeId]) {
+          document.getElementById("msg").textContent = "You already rated this place.";
+          document.getElementById("msg").classList.remove("hidden");
+          return;
+        }
+        votes[placeId] = vote;
+        setSession({ votes });
+        location.href = `./place.html?id=${placeId}`;
+      };
+    </script>
+  </body>
+</html>

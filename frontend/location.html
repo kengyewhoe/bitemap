@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Location</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-map-background font-body-md text-body-md w-full h-screen overflow-hidden relative">
+    <div class="absolute inset-0 z-0">
+      <img class="w-full h-full object-cover opacity-40 blur-sm" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
+      <div class="absolute inset-0 bg-gradient-to-t from-map-background via-map-background/60 to-transparent"></div>
+    </div>
+    <main class="relative z-10 w-full h-full flex flex-col justify-end md:justify-center items-center p-margin-mobile">
+      <div class="w-full max-w-md bg-sheet-surface rounded-t-[24px] md:rounded-[24px] p-sheet-padding shadow-2xl border border-sheet-outline text-center">
+        <div class="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto">
+          <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1">my_location</span>
+        </div>
+        <h1 class="font-headline-sheet text-headline-sheet text-sheet-on-surface mb-3">Find the real heat</h1>
+        <p class="font-body-md text-sheet-on-surface-muted mb-8 max-w-xs mx-auto">BiteMap uses your location to show what’s actually legit nearby.</p>
+        <button id="use-loc" class="w-full bg-primary-container text-white font-title-md text-title-md py-4 px-6 rounded-2xl mb-3 flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">my_location</span> Use my location
+        </button>
+        <button id="browse" class="w-full bg-transparent text-on-surface-variant font-title-md text-title-md py-4 px-6 rounded-2xl border border-outline-variant">Browse KL</button>
+      </div>
+    </main>
+    <script type="module">
+      import { setSession } from "./js/session.js";
+      function next(coords) {
+        setSession({ location: coords || { mode: "kl-centroid" }, onboardedLocation: true });
+        location.href = "./follow.html";
+      }
+      document.getElementById("browse").onclick = () => next(null);
+      document.getElementById("use-loc").onclick = () => {
+        if (!navigator.geolocation) return next(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => next({ lat: p.coords.latitude, lng: p.coords.longitude, mode: "precise" }),
+          () => next(null),
+          { enableHighAccuracy: false, timeout: 8000 }
+        );
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-background font-body-md pb-24">
+    <header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-surface-container-highest flex justify-between items-center px-margin-mobile py-4">
+      <a href="./influencers.html" class="w-10 h-10 flex items-center justify-center rounded-full text-primary"><span class="material-symbols-outlined">arrow_back</span></a>
+      <span id="area" class="text-primary font-semibold"></span>
+      <span class="w-10"></span>
+    </header>
+    <main class="pt-[72px]" id="main"></main>
+    <div id="app-nav"></div>
+    <script type="module">
+      import { getCreator, getPlace } from "./js/mock.js";
+      import { mountNav } from "./js/nav.js";
+      import { getSession, setSession } from "./js/session.js";
+      mountNav("influencers");
+      const c = getCreator(new URLSearchParams(location.search).get("id") || "klfoodie");
+      document.getElementById("area").textContent = "KL";
+      const following = new Set(getSession()?.following || []);
+      const on = following.has(c.id);
+      const picks = c.picks.map(getPlace);
+      document.getElementById("main").innerHTML = `
+        <section class="relative h-[280px] bg-surface-container">
+          <img src="${c.cover || c.avatar}" alt="" class="absolute inset-0 w-full h-full object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-t from-map-background/90 to-transparent"></div>
+          <div class="absolute bottom-0 w-full p-sheet-padding flex flex-col items-center text-center text-white">
+            <img src="${c.avatar}" alt="" class="w-24 h-24 rounded-full border-4 border-white object-cover mb-3" />
+            <h1 class="font-headline-sheet text-headline-sheet">${c.handle}</h1>
+            <p class="opacity-80 mb-3">${c.bio}</p>
+            <button id="follow" class="bg-primary-container px-6 py-2 rounded-lg font-title-md">${on ? "Following" : "Follow"}</button>
+          </div>
+        </section>
+        <section class="px-margin-mobile py-6 bg-sheet-surface rounded-t-3xl -mt-4 relative z-20">
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-surface-container-low rounded-xl p-4 text-center border border-surface-container-highest">
+              <span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Influence</span>
+              <div class="text-secondary font-display-map text-title-md">${c.influence}%</div>
+            </div>
+            <div class="bg-surface-container-low rounded-xl p-4 text-center border border-surface-container-highest">
+              <span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Spots</span>
+              <div class="font-display-map text-title-md">${c.spots}</div>
+            </div>
+            <div class="rounded-xl p-4 text-center ${c.trusted ? "bg-secondary-fixed/20 border border-secondary-fixed/30" : "bg-surface-container-low border"}">
+              <span class="material-symbols-outlined text-secondary text-3xl" style="font-variation-settings:'FILL' 1">verified_user</span>
+              <div class="font-label-caps text-label-caps text-secondary uppercase mt-1">${c.trusted ? "Community trusted" : "Unclaimed"}</div>
+            </div>
+          </div>
+          <h2 class="font-title-md text-title-md mb-4">Curated picks</h2>
+          <div class="flex flex-col gap-gutter">
+            ${picks
+              .map(
+                (p) => `<a href="./place.html?id=${p.id}" class="bg-sheet-surface border border-sheet-outline rounded-xl p-3 flex gap-4">
+              <img src="${p.thumb}" alt="" class="w-24 h-24 rounded-lg object-cover" />
+              <div class="flex-1">
+                <h3 class="font-title-md text-[16px]">${p.name}</h3>
+                <p class="text-[13px] text-on-surface-variant line-clamp-2">${p.blurb}</p>
+                <p class="text-xs text-on-surface-variant mt-2">${p.goodPct}% Good · ${p.area}</p>
+              </div>
+            </a>`
+              )
+              .join("") || `<p class="text-sheet-on-surface-muted">No mapped spots yet.</p>`}
+          </div>
+        </section>`;
+      document.getElementById("follow").onclick = () => {
+        if (following.has(c.id)) following.delete(c.id);
+        else following.add(c.id);
+        setSession({ following: [...following] });
+        location.reload();
+      };
+    </script>
+  </body>
+</html>
