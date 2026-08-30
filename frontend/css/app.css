@@ -64,3 +64,10 @@ input {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
+
+.map-shell #app-nav nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+}

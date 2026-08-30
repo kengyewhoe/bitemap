@@ -9,7 +9,7 @@ export function mountNav(active) {
   const host = document.getElementById("app-nav");
   if (!host) return;
   host.innerHTML = `
-    <nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-sheet-surface border-t border-sheet-outline shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex justify-around items-center h-20 px-4 pb-safe md:hidden">
+    <nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-sheet-surface border-t border-sheet-outline shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex justify-around items-center h-20 px-4 pb-safe">
       ${TABS.map((tab) => {
         const on = tab.id === active;
         return `
