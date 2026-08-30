@@ -52,7 +52,7 @@ Every tier emits the same thing — a `venue_candidate` row — and they run in 
 
 The creator's own Google Maps place list, or a publication's own venue directory. Already carries name, address, coordinates and a **Google Place ID** — literally the `venues.google_place_id` field SPEC §4 defines for the Maps deeplink. No location tag, no LLM, no fuzzy matching, no confidence score.
 
-*Caveats.* A guide is a curated **subset** — high precision, unknown recall. It carries no dates and no post URLs, so it gives you a `venues` row but not the `venue_posts` row SPEC §3.3 "Why it's here" needs; those still get paired back to posts. And Maps place lists render entirely in JavaScript — a logged-out fetch returns a 35KB shell with zero Place IDs, so extraction needs a real browser render.
+*Caveats.* A guide is a curated **subset** — high precision, unknown recall. It carries no dates and no post URLs, so it gives you a `venues` row but not the `recommendations` row SPEC §3.3 "Why it's here" needs; those still get paired back to posts. And Maps place lists render entirely in JavaScript — a logged-out fetch returns a 35KB shell with zero Place IDs, so extraction needs a real browser render.
 
 ### Tier B — Self-indexed archives
 *~25% of creators · precision high · cost: low*
@@ -90,39 +90,39 @@ This is what makes the tiering work: resolution accumulates **per venue**, not p
 
 ## 3. Schema
 
-> **Reconciled with SPEC, 30/08/2026.** This section was written against a draft where `venue_posts.influencer_handle` was a plain string and influencer records were deferred. SPEC now ships `influencers` and `recommendations` as v1 tables, which resolves most of what follows. **Only `influencer_venues` and `venue_candidates` remain to be added** — and `influencer_venues` may collapse into `recommendations` entirely once Tier A imports need a row with no post behind them. The `influencers` block below is kept for the fields SPEC does not yet carry: `content_type`, `best_tier`, `maps_list_url`, `personal_hashtag`.
+> **Reconciled with SPEC, 30/08/2026.** This section was written against a draft where `venue_posts.influencer_handle` was a plain string and influencer records were deferred. SPEC now ships `influencers` and `recommendations` as v1 tables, which resolves most of what follows. **Only `influencer_venues` and `venue_candidates` remain to be added** — and `influencer_venues` may collapse into `recommendations` entirely once Tier A imports need a row with no post behind them. SPEC also pulled `content_type`, `is_operator`, `operator_venue_id` and `maps_list_url` forward into v1 (per the Phase 0 argument in §4), so the `influencers` block below is kept only for the three columns v1 still lacks: `personal_hashtag`, `best_tier`, `last_crawled_at`.
 
 A per-influencer venue database needs the influencer to be a row, not a string. Three tables described here; `venues` is untouched.
 
 ```
--- who we track, and what kind of creator they actually are
+-- ALREADY SHIPS IN V1. Do not create — see SPEC 4 `influencers`.
+-- Listed here only for the three columns v1 does not yet carry.
 influencers
-  id                uuid pk
-  handle            text          -- '@tomato_ate_it', unique per platform
-  platform          enum          -- instagram | tiktok
-  display_name      text
-  follower_count    int           -- snapshot, refreshed on crawl
-  content_type      enum          -- venue_reviewer | recipe | travel | media_brand
-                                  -- | photographer. Only venue_reviewer is crawled.
-  is_operator       bool          -- owns or runs a venue (see @mingchuun)
-  operator_venue_id uuid null     -- their own shop, so we can discount it
-  maps_list_url     text null     -- Tier A source, if they publish one
-  personal_hashtag  text null     -- Tier B source, e.g. '#carolcafehop'
-  best_tier         enum          -- A | B | C — cheapest tier that works for them
-  last_crawled_at   timestamptz
+  ...                             -- v1 already has: id, handle, platform,
+                                  -- display_name, follower_count, is_active,
+                                  -- content_type, is_operator, operator_venue_id,
+                                  -- maps_list_url, avatar_* (SPEC 4.4)
+  personal_hashtag  text null     -- ADD. Tier B source, e.g. '#carolcafehop'
+  best_tier         enum          -- ADD. A | B | C — cheapest tier that works
+  last_crawled_at   timestamptz   -- ADD. Crawl bookkeeping, no v1 equivalent
 
 -- the answer to "which restaurants has this influencer reviewed?"
+-- LARGELY SUBSUMED by v1 `recommendations`, which already carries
+-- influencer_id, venue_id, source_tier and is_self_interest. Build this
+-- ONLY if Tier A imports need a row with no post behind them; otherwise
+-- make `recommendations.post_url` nullable and use that table instead.
 influencer_venues
   influencer_id     fk → influencers.id
   venue_id          fk → venues.id
   source_tier       enum          -- A | B | C1..C4 | D — provenance, always kept
-  post_id           fk → venue_posts.id null   -- null for Tier A imports
+  recommendation_id fk → recommendations.id null   -- null for Tier A imports
   sentiment         enum null     -- post-v1; do not populate at first
   is_self_interest  bool          -- true when the creator owns this venue
   first_seen_at     timestamptz
   unique (influencer_id, venue_id)
 
--- staging. nothing reaches `venues` from here without passing a threshold
+-- GENUINELY NEW. Staging: nothing reaches `venues` from here
+-- without passing a threshold.
 venue_candidates
   id                uuid pk
   influencer_id     fk → influencers.id
@@ -133,6 +133,8 @@ venue_candidates
   raw_lat / raw_lng double null
   google_place_id   text null     -- present and trusted for Tier A
   match_confidence  numeric       -- 0..1
+  photo_source      enum null     -- SPEC 4.4 contract: carried through to the
+  photo_source_url  text null     -- venues row, not backfilled by the scrape job
   review_status     enum          -- auto | queued | merged | rejected
   resolved_venue_id fk → venues.id null
 ```
