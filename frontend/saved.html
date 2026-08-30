@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiteMap — Saved</title>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="/js/theme.js"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="bg-sheet-background text-sheet-on-surface font-body-md min-h-screen flex flex-col">
+    <header class="bg-background/90 backdrop-blur-md fixed top-0 w-full z-50 border-b border-surface-variant px-margin-mobile py-4 flex items-center">
+      <h1 class="font-headline-sheet text-headline-sheet text-primary flex-1 text-center">Saved</h1>
+    </header>
+    <main class="flex-1 overflow-y-auto hide-scrollbar pt-[88px] pb-[100px] px-margin-mobile max-w-2xl mx-auto w-full">
+      <p class="text-sheet-on-surface-muted mb-6">Places you bookmarked from the map.</p>
+      <div id="list" class="space-y-2"></div>
+    </main>
+    <div id="app-nav"></div>
+    <script type="module">
+      import { places, getCreatorByHandle } from "./js/mock.js";
+      import { mountNav } from "./js/nav.js";
+      import { getSession, setSession } from "./js/session.js";
+      mountNav("saved");
+      const saved = new Set(getSession()?.saved || []);
+
+      function render() {
+        const rows = places.filter((p) => saved.has(p.id));
+        const host = document.getElementById("list");
+        if (!rows.length) {
+          host.innerHTML = `
+            <div class="bg-sheet-surface rounded-2xl border border-sheet-outline p-6 text-center">
+              <span class="material-symbols-outlined text-4xl text-sheet-on-surface-muted mb-2">bookmark</span>
+              <p class="font-title-md text-title-md text-tertiary-dark mb-1">Nothing saved yet</p>
+              <p class="text-sm text-sheet-on-surface-muted mb-4">Bookmark a place from the map to see it here.</p>
+              <a href="./home.html" class="inline-block bg-primary-container text-on-primary rounded-xl px-5 py-2.5 text-sm font-bold">Open map</a>
+            </div>`;
+          return;
+        }
+        host.innerHTML = rows
+          .map((p) => {
+            const creator = getCreatorByHandle(p.mentionedBy.handle);
+            const avatar = creator?.avatar ? `<img src="${creator.avatar}" alt="" class="w-4 h-4 rounded-full object-cover" />` : "";
+            return `<a href="./place.html?id=${p.id}" class="flex gap-4 p-3 rounded-xl bg-sheet-surface border border-sheet-outline">
+              <img src="${p.thumb}" alt="" class="w-16 h-16 rounded-2xl object-cover border border-sheet-outline" />
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between gap-2">
+                  <h3 class="font-title-md text-title-md text-tertiary-dark truncate">${p.name}</h3>
+                  <button type="button" data-save="${p.id}" class="p-1.5 rounded-full border border-sheet-outline text-primary"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">bookmark</span></button>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-bold uppercase ${p.halal ? "text-secondary bg-secondary-container" : "text-error bg-error-container"} px-1.5 py-0.5 rounded">${p.halal ? "Halal" : "Non-halal"}</span>
+                  <span class="inline-flex items-center gap-1 bg-sheet-surface-low px-1.5 py-0.5 rounded-full border border-sheet-outline">
+                    ${avatar}
+                    <span class="text-[10px] font-semibold text-sheet-on-surface-muted">${p.mentionedBy.handle}</span>
+                  </span>
+                </div>
+                <p class="text-sm text-sheet-on-surface-muted mt-1">${p.area} · ${p.km} km</p>
+              </div>
+            </a>`;
+          })
+          .join("");
+        document.querySelectorAll("[data-save]").forEach((btn) => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            saved.delete(btn.dataset.save);
+            setSession({ saved: [...saved] });
+            render();
+          };
+        });
+      }
+      render();
+    </script>
+  </body>
+</html>

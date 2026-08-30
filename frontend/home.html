@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BiteMap — Home</title>
+    <title>BiteMap — Map</title>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Be+Vietnam+Pro:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -15,33 +15,238 @@
       <img class="absolute inset-0 w-full h-full object-cover opacity-80" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
       <div class="absolute inset-0 bg-map-background/50"></div>
     </div>
-    <button type="button" class="absolute top-margin-mobile right-margin-mobile w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface z-20" title="Recenter">
-      <span class="material-symbols-outlined">my_location</span>
-    </button>
+    <button type="button" id="dismiss" class="hidden absolute inset-0 z-[5] bg-transparent" aria-label="Close nearby list"></button>
+    <div class="absolute top-0 left-0 right-0 p-margin-mobile z-40 flex gap-2 items-center">
+      <div class="flex-1 bg-map-surface/90 backdrop-blur-md border border-map-outline rounded-full flex items-center p-2 min-w-0">
+        <span class="material-symbols-outlined text-map-on-surface ml-2">search</span>
+        <input id="q" class="bg-transparent border-none focus:ring-0 text-map-on-surface w-full placeholder:text-sheet-on-surface-muted mx-2" placeholder="Search Kuala Lumpur…" />
+      </div>
+      <button type="button" id="open-filters" class="relative flex-shrink-0 w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface" title="Filters">
+        <span class="material-symbols-outlined">tune</span>
+        <span id="filter-dot" class="hidden absolute top-2 right-2 w-2 h-2 rounded-full bg-primary-container"></span>
+      </button>
+      <button type="button" id="recenter" class="flex-shrink-0 w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface" title="Recenter">
+        <span class="material-symbols-outlined">my_location</span>
+      </button>
+    </div>
     <div id="pins" class="absolute inset-0 z-10"></div>
-    <div class="absolute bottom-[80px] w-full z-30 md:w-[400px] md:right-margin-desktop md:bottom-margin-desktop md:left-auto">
-      <div id="sheet" class="bg-sheet-surface rounded-t-[24px] md:rounded-[24px] p-sheet-padding shadow-[0_-4px_24px_rgba(0,0,0,0.1)] border border-sheet-outline"></div>
+    <div id="map-peek" class="hidden absolute bottom-[168px] left-margin-mobile right-margin-mobile z-30 md:left-auto md:right-margin-desktop md:w-[400px]"></div>
+    <button type="button" id="nearby-cta" class="absolute bottom-[96px] left-margin-mobile right-margin-mobile z-30 md:left-auto md:right-margin-desktop md:w-[400px] bg-primary-container text-on-primary rounded-2xl py-3.5 px-5 font-bold text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between">
+      <span>Nearby picks</span>
+      <span id="cta-count" class="text-sm font-semibold opacity-90"></span>
+    </button>
+    <div id="sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-30 h-[58vh] w-full md:w-[400px] md:right-margin-desktop md:left-auto md:bottom-margin-desktop md:h-[70vh] bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+      <div id="sheet-handle" class="w-full h-8 flex justify-center items-center flex-shrink-0 cursor-pointer">
+        <div class="w-12 h-1.5 bg-sheet-on-surface-muted/30 rounded-full"></div>
+      </div>
+      <div class="px-sheet-padding pb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 id="sheet-title" class="font-headline-sheet text-headline-sheet">Nearby picks</h2>
+          <p id="sheet-sub" class="text-sheet-on-surface-muted text-sm">Recent mentions · within 5 km</p>
+        </div>
+        <button type="button" id="sheet-close" class="flex-shrink-0 w-9 h-9 rounded-full border border-sheet-outline text-sheet-on-surface-muted flex items-center justify-center" aria-label="Close">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+      <div id="feed-tabs" class="flex gap-2 px-sheet-padding pb-3"></div>
+      <div id="follow-sort" class="hidden gap-2 px-sheet-padding pb-3"></div>
+      <div id="peek" class="hidden px-sheet-padding pb-3"></div>
+      <div id="active-filters" class="flex gap-2 overflow-x-auto px-sheet-padding pb-3 hide-scrollbar"></div>
+      <div id="list" class="flex-1 overflow-y-auto px-sheet-padding pb-4 space-y-2 hide-scrollbar"></div>
+    </div>
+    <div id="filter-sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-40 h-[62vh] w-full md:w-[400px] md:right-margin-desktop md:left-auto md:bottom-margin-desktop md:h-[70vh] bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+      <div id="filter-handle" class="w-full h-8 flex justify-center items-center flex-shrink-0 cursor-pointer">
+        <div class="w-12 h-1.5 bg-sheet-on-surface-muted/30 rounded-full"></div>
+      </div>
+      <div class="px-sheet-padding pb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 class="font-headline-sheet text-headline-sheet">Filters</h2>
+          <p class="text-sheet-on-surface-muted text-sm">Narrow nearby results</p>
+        </div>
+        <button type="button" id="filter-close" class="flex-shrink-0 w-9 h-9 rounded-full border border-sheet-outline text-sheet-on-surface-muted flex items-center justify-center" aria-label="Close filters">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+      <div id="filter-body" class="flex-1 overflow-y-auto px-sheet-padding pb-4 hide-scrollbar"></div>
+      <div class="px-sheet-padding pb-4 pt-2 border-t border-sheet-outline flex gap-2">
+        <button type="button" id="filter-reset" class="flex-1 py-3 rounded-xl border border-sheet-outline font-semibold text-sheet-on-surface">Reset</button>
+        <button type="button" id="filter-done" class="flex-1 py-3 rounded-xl bg-primary-container text-on-primary font-bold">Done</button>
+      </div>
     </div>
     <div id="app-nav"></div>
     <script type="module">
-      import { places } from "./js/mock.js";
+      import { places, creators, getCreatorByHandle, placesFromFollows } from "./js/mock.js";
       import { mountNav } from "./js/nav.js";
+      import { getSession, setSession } from "./js/session.js";
       mountNav("map");
-      const positions = [
-        { top: "35%", left: "20%" },
-        { top: "48%", left: "58%" },
-        { top: "28%", left: "70%" },
+      const saved = new Set(getSession()?.saved || []);
+      const following = new Set(getSession()?.following || creators.filter((c) => c.following).map((c) => c.id));
+      let feed = "nearby";
+      let followSort = "rank";
+      const positions = {
+        "kin-kin": { top: "35%", left: "20%" },
+        wanjo: { top: "48%", left: "58%" },
+        alor: { top: "28%", left: "70%" },
+      };
+      let selected = null;
+      let sheetOpen = false;
+      let filterOpen = false;
+      const defaultFilters = { diet: "all", sort: "rank", category: "" };
+      let filters = { ...defaultFilters };
+      const dietOptions = [
+        ["all", "All"],
+        ["halal", "Halal"],
+        ["non", "Non-halal"],
       ];
-      let selected = places[0].id;
+      const sortOptions = [
+        ["rank", "Best"],
+        ["distance", "Distance"],
+        ["recent", "Recent"],
+      ];
+      const categoryOptions = [...new Set(places.map((p) => p.category))];
+
       function pinColor(p) {
         return p.heat === "chili" ? "bg-map-chili shadow-map-chili" : p.heat === "lime" ? "bg-map-lime" : "bg-map-mango shadow-map-mango";
       }
+
+      function filterCount() {
+        return (filters.diet !== "all" ? 1 : 0) + (filters.sort !== "rank" ? 1 : 0) + (filters.category ? 1 : 0);
+      }
+
+      function applyCommonFilters(source) {
+        const term = document.getElementById("q").value.toLowerCase().trim();
+        return source.filter((p) => {
+          if (filters.diet === "halal" && !p.halal) return false;
+          if (filters.diet === "non" && p.halal) return false;
+          if (filters.category && p.category !== filters.category) return false;
+          return !term || p.name.toLowerCase().includes(term) || p.area.toLowerCase().includes(term);
+        });
+      }
+
+      function sortRows(rows, sort) {
+        const copy = [...rows];
+        if (sort === "distance") copy.sort((a, b) => a.km - b.km);
+        else if (sort === "recent") copy.sort((a, b) => new Date(b.mentionedAt || 0) - new Date(a.mentionedAt || 0));
+        else copy.sort((a, b) => b.goodPct - a.goodPct);
+        return copy;
+      }
+
+      function nearbyRows() {
+        return sortRows(applyCommonFilters(places), filters.sort);
+      }
+
+      function followingRows() {
+        return sortRows(applyCommonFilters(placesFromFollows(following)), followSort);
+      }
+
+      function listRows() {
+        return feed === "following" ? followingRows() : nearbyRows();
+      }
+
+      function peekHtml(p) {
+        return `
+          <a href="./place.html?id=${p.id}" class="block rounded-xl bg-sheet-surface border border-sheet-outline p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
+            <div class="flex justify-between gap-2 mb-1">
+              <h3 class="font-headline-sheet text-[18px] leading-6 text-tertiary-dark truncate">${p.name}</h3>
+              <span class="text-xs font-semibold text-secondary flex-shrink-0">${p.goodPct}% Good</span>
+            </div>
+            <p class="text-[13px] text-sheet-on-surface-muted">${p.area} · ${p.km} km</p>
+          </a>`;
+      }
+
+      function setSheet(open) {
+        sheetOpen = open;
+        document.getElementById("sheet").classList.toggle("hidden", !open);
+        document.getElementById("nearby-cta").classList.toggle("hidden", open || filterOpen);
+        document.getElementById("dismiss").classList.toggle("hidden", !open && !filterOpen);
+        syncPeek();
+        if (open && selected) {
+          document.getElementById(`row-${selected}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        render();
+      }
+
+      function setFiltersOpen(open) {
+        filterOpen = open;
+        document.getElementById("filter-sheet").classList.toggle("hidden", !open);
+        document.getElementById("nearby-cta").classList.toggle("hidden", open || sheetOpen);
+        document.getElementById("dismiss").classList.toggle("hidden", !sheetOpen && !open);
+        if (open) renderFilterBody();
+      }
+
+      function chipClass(on) {
+        return `flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border ${on ? "bg-primary text-white border-primary" : "bg-sheet-surface text-sheet-on-surface-muted border-sheet-outline"}`;
+      }
+
+      function renderFilterBody() {
+        const cats = [["", "All"], ...categoryOptions.map((c) => [c, c])];
+        document.getElementById("filter-body").innerHTML = `
+          <section class="mb-5">
+            <h3 class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase mb-2">Diet</h3>
+            <div class="flex flex-wrap gap-2">${dietOptions.map(([id, label]) => `<button type="button" data-diet="${id}" class="${chipClass(filters.diet === id)}">${label}</button>`).join("")}</div>
+          </section>
+          <section class="mb-5">
+            <h3 class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase mb-2">Sort</h3>
+            <div class="flex flex-wrap gap-2">${sortOptions.map(([id, label]) => `<button type="button" data-sort="${id}" class="${chipClass(filters.sort === id)}">${label}</button>`).join("")}</div>
+          </section>
+          <section>
+            <h3 class="font-label-caps text-label-caps text-sheet-on-surface-muted uppercase mb-2">Category</h3>
+            <div class="flex flex-wrap gap-2">${cats.map(([id, label]) => `<button type="button" data-cat="${id}" class="${chipClass(filters.category === id)}">${label}</button>`).join("")}</div>
+          </section>`;
+        document.querySelectorAll("#filter-body [data-diet]").forEach((b) => {
+          b.onclick = () => {
+            filters.diet = b.dataset.diet;
+            render();
+            renderFilterBody();
+          };
+        });
+        document.querySelectorAll("#filter-body [data-sort]").forEach((b) => {
+          b.onclick = () => {
+            filters.sort = b.dataset.sort;
+            render();
+            renderFilterBody();
+          };
+        });
+        document.querySelectorAll("#filter-body [data-cat]").forEach((b) => {
+          b.onclick = () => {
+            filters.category = b.dataset.cat;
+            render();
+            renderFilterBody();
+          };
+        });
+      }
+
+      function syncPeek() {
+        const p = places.find((x) => x.id === selected);
+        const sheetPeek = document.getElementById("peek");
+        const mapPeek = document.getElementById("map-peek");
+        if (!p) {
+          sheetPeek.classList.add("hidden");
+          sheetPeek.innerHTML = "";
+          mapPeek.classList.add("hidden");
+          mapPeek.innerHTML = "";
+          return;
+        }
+        if (sheetOpen) {
+          mapPeek.classList.add("hidden");
+          mapPeek.innerHTML = "";
+          sheetPeek.classList.remove("hidden");
+          sheetPeek.innerHTML = peekHtml(p);
+        } else {
+          sheetPeek.classList.add("hidden");
+          sheetPeek.innerHTML = "";
+          mapPeek.classList.remove("hidden");
+          mapPeek.innerHTML = peekHtml(p);
+        }
+      }
+
       function renderPins() {
-        document.getElementById("pins").innerHTML = places
-          .map((p, i) => {
+        const rows = nearbyRows();
+        document.getElementById("pins").innerHTML = rows
+          .map((p) => {
+            const pos = positions[p.id] || { top: "40%", left: "40%" };
             const on = p.id === selected;
-            const pos = positions[i];
-            return `<button data-id="${p.id}" class="absolute flex flex-col items-center" style="top:${pos.top};left:${pos.left}">
+            return `<button type="button" data-id="${p.id}" class="absolute flex flex-col items-center" style="top:${pos.top};left:${pos.left}">
               <span class="relative flex items-center justify-center">
                 ${on ? '<span class="absolute w-8 h-8 rounded-full border-2 border-map-lime pulse-ring"></span>' : ""}
                 <span class="w-5 h-5 rounded-full ${pinColor(p)} map-pin-glow z-10 border-2 border-map-surface ${on ? "glow-mango" : ""}"></span>
@@ -53,38 +258,142 @@
         document.querySelectorAll("#pins [data-id]").forEach((el) => {
           el.onclick = () => {
             selected = el.dataset.id;
-            renderPins();
-            renderSheet();
+            render();
           };
         });
       }
-      function renderSheet() {
-        const p = places.find((x) => x.id === selected);
-        document.getElementById("sheet").innerHTML = `
-          <div class="w-12 h-1.5 bg-sheet-outline rounded-full mx-auto mb-6 md:hidden"></div>
-          <h2 class="font-headline-sheet text-headline-sheet text-tertiary-dark mb-1">${p.name}</h2>
-          <p class="font-body-md text-sheet-on-surface-muted mb-gutter">${p.area} · ${p.km} km</p>
-          <div class="flex items-center justify-between mb-gutter bg-sheet-surface-low rounded-xl p-3 border border-sheet-outline">
-            <div>
-              <span class="text-sm font-semibold text-secondary">${p.goodPct}% Good</span>
-              <div class="w-24 h-1.5 bg-surface-variant rounded-full overflow-hidden mt-1"><div class="h-full bg-secondary" style="width:${p.goodPct}%"></div></div>
+
+      function placeRow(p) {
+        const creator = getCreatorByHandle(p.mentionedBy.handle);
+        const avatar = creator?.avatar ? `<img src="${creator.avatar}" alt="" class="w-4 h-4 rounded-full object-cover" />` : "";
+        const on = p.id === selected;
+        return `<a id="row-${p.id}" href="./place.html?id=${p.id}" class="flex gap-4 p-2 -mx-2 rounded-xl ${on ? "bg-sheet-surface-low" : "hover:bg-sheet-surface-low"}">
+          <img src="${p.thumb}" alt="" class="w-16 h-16 rounded-2xl object-cover border border-sheet-outline" />
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between gap-2">
+              <h3 class="font-title-md text-title-md text-tertiary-dark truncate">${p.name}</h3>
+              <button type="button" data-save="${p.id}" class="p-1.5 rounded-full border border-sheet-outline text-sheet-on-surface-muted"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' ${saved.has(p.id) ? 1 : 0}">bookmark</span></button>
             </div>
-            <div class="flex gap-1 bg-sheet-surface rounded-lg p-1 border border-sheet-outline">
-              <a href="./rate.html?place=${p.id}" class="px-3 py-1.5 rounded-md font-semibold text-sm flex items-center gap-1"><span class="material-symbols-outlined text-[18px]">thumb_up</span> Good</a>
-              <a href="./rate.html?place=${p.id}" class="px-3 py-1.5 rounded-md font-semibold text-sm text-sheet-on-surface-muted flex items-center gap-1"><span class="material-symbols-outlined text-[18px]">thumb_down</span> Bad</a>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] font-bold uppercase ${p.halal ? "text-secondary bg-secondary-container" : "text-error bg-error-container"} px-1.5 py-0.5 rounded">${p.halal ? "Halal" : "Non-halal"}</span>
+              <span class="inline-flex items-center gap-1 bg-sheet-surface-low px-1.5 py-0.5 rounded-full border border-sheet-outline">
+                ${avatar}
+                <span class="text-[10px] font-semibold text-sheet-on-surface-muted">${p.mentionedBy.handle}</span>
+              </span>
             </div>
+            <p class="text-sm text-sheet-on-surface-muted mt-1">${p.stars} · ${p.category} · ${p.km} km</p>
           </div>
-          <a href="./place.html?id=${p.id}" class="block w-full text-center bg-primary-container text-on-primary rounded-[16px] py-3.5 font-title-md font-bold mb-gutter">Directions / details</a>
-          <a href="./place.html?id=${p.id}" class="rounded-[16px] bg-sheet-surface-low border border-sheet-outline p-3 flex gap-3 items-center">
-            <img src="${p.thumb}" alt="" class="w-16 h-16 rounded-xl object-cover" />
-            <div>
-              <p class="text-[14px] line-clamp-2">“${p.mentionedBy.quote}”</p>
-              <p class="text-xs text-sheet-on-surface-muted">${p.mentionedBy.handle}</p>
-            </div>
-          </a>`;
+        </a>`;
       }
-      renderPins();
-      renderSheet();
+
+      function render() {
+        const nearby = nearbyRows();
+        const rows = listRows();
+        document.getElementById("cta-count").textContent = `${nearby.length} nearby`;
+        document.getElementById("filter-dot").classList.toggle("hidden", filterCount() === 0);
+        const followingOn = feed === "following";
+        document.getElementById("sheet-title").textContent = followingOn ? "Following" : "Nearby picks";
+        document.getElementById("sheet-sub").textContent = followingOn
+          ? followSort === "recent"
+            ? "New picks from people you follow"
+            : "Trending picks from people you follow"
+          : "Recent mentions · within 5 km";
+        document.getElementById("feed-tabs").innerHTML = [
+          ["nearby", "Nearby"],
+          ["following", "Following"],
+        ]
+          .map(([id, label]) => `<button type="button" data-feed="${id}" class="${chipClass(feed === id)}">${label}</button>`)
+          .join("");
+        document.querySelectorAll("[data-feed]").forEach((b) => {
+          b.onclick = () => {
+            feed = b.dataset.feed;
+            render();
+          };
+        });
+        const followSortEl = document.getElementById("follow-sort");
+        followSortEl.classList.toggle("hidden", !followingOn);
+        followSortEl.classList.toggle("flex", followingOn);
+        if (followingOn) {
+          followSortEl.innerHTML = [
+            ["rank", "Trending"],
+            ["recent", "New"],
+          ]
+            .map(([id, label]) => `<button type="button" data-fsort="${id}" class="${chipClass(followSort === id)}">${label}</button>`)
+            .join("");
+          document.querySelectorAll("[data-fsort]").forEach((b) => {
+            b.onclick = () => {
+              followSort = b.dataset.fsort;
+              render();
+            };
+          });
+        }
+        const tags = [];
+        if (filters.diet === "halal") tags.push("Halal");
+        if (filters.diet === "non") tags.push("Non-halal");
+        if (!followingOn && filters.sort !== "rank") tags.push(sortOptions.find(([id]) => id === filters.sort)?.[1]);
+        if (filters.category) tags.push(filters.category);
+        document.getElementById("active-filters").innerHTML = `<button type="button" id="edit-filters" class="${chipClass(filterCount() > 0)}">Filters${filterCount() ? ` · ${filterCount()}` : ""}</button>${tags.map((t) => `<span class="flex-shrink-0 px-3 py-1.5 rounded-full text-sm border border-sheet-outline text-sheet-on-surface-muted">${t}</span>`).join("")}`;
+        document.getElementById("edit-filters").onclick = () => setFiltersOpen(true);
+        if (selected && !nearby.some((p) => p.id === selected)) selected = null;
+        if (followingOn && !following.size) {
+          document.getElementById("list").innerHTML = `
+            <div class="bg-sheet-surface-low rounded-2xl border border-sheet-outline p-5 text-center">
+              <p class="font-title-md text-title-md text-tertiary-dark mb-1">No follows yet</p>
+              <p class="text-sm text-sheet-on-surface-muted mb-4">Follow creators to see Trending and New picks here. Nearby stays on the map.</p>
+              <a href="./influencers.html" class="inline-block bg-primary-container text-on-primary rounded-xl px-5 py-2.5 text-sm font-bold">Find influencers</a>
+            </div>`;
+        } else if (followingOn && !rows.length) {
+          document.getElementById("list").innerHTML = `
+            <div class="bg-sheet-surface-low rounded-2xl border border-sheet-outline p-5 text-center">
+              <p class="font-title-md text-title-md text-tertiary-dark mb-1">No picks from people you follow</p>
+              <p class="text-sm text-sheet-on-surface-muted">Try Nearby, or follow more KL creators.</p>
+            </div>`;
+        } else {
+          document.getElementById("list").innerHTML = rows.map(placeRow).join("");
+        }
+        document.querySelectorAll("[data-save]").forEach((btn) => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = btn.dataset.save;
+            if (saved.has(id)) saved.delete(id);
+            else saved.add(id);
+            setSession({ saved: [...saved] });
+            render();
+          };
+        });
+        renderPins();
+        syncPeek();
+      }
+
+      document.getElementById("nearby-cta").onclick = () => setSheet(true);
+      document.getElementById("sheet-close").onclick = () => setSheet(false);
+      document.getElementById("sheet-handle").onclick = () => setSheet(false);
+      document.getElementById("open-filters").onclick = () => setFiltersOpen(true);
+      document.getElementById("filter-close").onclick = () => setFiltersOpen(false);
+      document.getElementById("filter-handle").onclick = () => setFiltersOpen(false);
+      document.getElementById("filter-done").onclick = () => setFiltersOpen(false);
+      document.getElementById("filter-reset").onclick = () => {
+        filters = { ...defaultFilters };
+        render();
+        renderFilterBody();
+      };
+      document.getElementById("dismiss").onclick = () => {
+        if (filterOpen) setFiltersOpen(false);
+        else setSheet(false);
+      };
+      document.getElementById("q").oninput = () => {
+        if (selected && !nearbyRows().some((p) => p.id === selected)) selected = null;
+        render();
+      };
+      document.getElementById("recenter").onclick = () => {
+        selected = null;
+        document.getElementById("q").value = "";
+        filters = { ...defaultFilters };
+        render();
+      };
+      render();
+      setSheet(false);
     </script>
   </body>
 </html>

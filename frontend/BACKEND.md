@@ -52,28 +52,30 @@ Client reads GPS. Backend does **not** need to store precise tracks.
 
 ### Home map (`home.html`)
 
+Map tab is nearby discovery: pins + search + filters + list. List has **Nearby** and **Following** (Trending / New).
+
 | Action | Method | Path | Notes |
 |---|---|---|---|
-| Nearby pins | `GET` | `/places/nearby?lat=&lng=&radius_km=5` | `id, name, lat, lng, heat, good_pct, area, km` |
+| Nearby pins + Nearby list | `GET` | `/places/nearby?lat=&lng=&radius_km=5&halal=&q=&sort=&category=&followed=0` | Pins always use this. `q` is **fuzzy on the server** |
+| Following · Trending | `GET` | `/places/nearby?...&followed=1&sort=rank` | Auth. Mentions from followed creators |
+| Following · New | `GET` | `/places/nearby?...&followed=1&sort=recent` | Auth. Latest followed `posted_at` |
 | Place peek | `GET` | `/places/:id/preview` | Name, area, km, good%, latest mention quote + thumb |
 | Recenter | client | — | Re-call nearby with new lat/lng |
+| Save | `PUT` | `/me/saves/:placeId` | From list bookmark |
+| Unsave | `DELETE` | `/me/saves/:placeId` | |
 
-**Logic:** PostGIS `ST_DWithin` inside KL bbox. Rank: recency of mentions × mention count × creator credibility. `heat` = high / med / low from that score (maps to chili / mango / lime). Cache in Redis by geohash ~5–15 min.
+**Logic:** PostGIS `ST_DWithin` inside KL bbox. Rank: recency of mentions × mention count × creator credibility. `heat` = high / med / low from that score (maps to chili / mango / lime). Cache in Redis by geohash ~5–15 min. Filters are cheap columns (`halal`, `category`). Search on name/area. `followed=1` empty → empty list + `empty_reason`, never KL trending. Pins stay on `followed=0`.
 
 ---
 
-### Nearby list (`discovery.html`)
+### Saved (`saved.html`)
 
-Same `/places/nearby` plus filters:
+| Action | Method | Path | Notes |
+|---|---|---|---|
+| List | `GET` | `/me/saves` | Place DTOs the user bookmarked |
+| Unsave | `DELETE` | `/me/saves/:placeId` | |
 
-`?halal=true|false&q=&sort=distance|recent`
-
-| Action | Method | Path |
-|---|---|---|
-| Save | `PUT` | `/me/saves/:placeId` |
-| Unsave | `DELETE` | `/me/saves/:placeId` |
-
-**Logic:** Optional `saves` table. Filters are cheap columns on `places` (`halal`, `category`). Search on name/area.
+**Logic:** Optional `saves` table. Empty state if none.
 
 ---
 

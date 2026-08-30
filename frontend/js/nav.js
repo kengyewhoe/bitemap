@@ -1,7 +1,7 @@
 const TABS = [
   { id: "map", href: "./home.html", icon: "map", label: "Map" },
   { id: "influencers", href: "./influencers.html", icon: "group", label: "Influencers" },
-  { id: "saved", href: "./discovery.html", icon: "bookmark", label: "Nearby" },
+  { id: "saved", href: "./saved.html", icon: "bookmark", label: "Saved" },
   { id: "me", href: "./me.html", icon: "person", label: "Me" },
 ];
 

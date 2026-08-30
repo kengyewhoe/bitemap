@@ -16,7 +16,7 @@ This document is the implementation contract for the API, persistence, and domai
 The backend exists to:
 
 1. Authenticate users and authorize votes / follows / claims / saves.
-2. Serve **nearby KL places** (map pins + list) ranked for “eat now.”
+2. Serve **nearby KL places** (map pins + list) ranked for “eat now,” plus a **Following** list (`followed=1`) of Trending / New picks from creators the user follows.
 3. Serve **place detail** with influencer mentions (oEmbed + thumbnails — **no video files**).
 4. Record **Good / Bad** (honor-system visit) and keep place + creator scores consistent.
 5. Serve **creator profiles**, follow graph, and trust ranking.
@@ -50,7 +50,7 @@ It does **not** exist to scrape at request time, host TikTok/IG binaries, or ver
 |---|---|
 | Geography | KL metro only. Reject or clamp queries outside the KL bounding box. Distances in **km**. |
 | Default radius | **5 km**. Max allowed **10 km**. |
-| Empty map | If &lt; 3 places in radius, fall back to **KL trending** (city-wide, still KL-only). Never return `[]` as the only home state. |
+| Empty map | If &lt; 3 places in **Nearby** (`followed=0`) radius, fall back to **KL trending** (city-wide, still KL-only). Never return `[]` as the only **Nearby / pin** state. **Following** (`followed=1`) may be empty — do not substitute KL trending. |
 | Guest | May browse nearby + place + creators. **Must be signed in to vote, follow, save, claim.** |
 | Visit proof | Honor system. Do **not** persist a “verified visit” flag. API copy/errors must not say verified. |
 | Video | Store `post_url`, `thumbnail_url`, `oembed_html`. Never download or re-encode video. |
@@ -226,8 +226,13 @@ Idempotency: `Idempotency-Key` header optional; unique constraint is the source 
 ### 6.6 Follow
 
 - `PUT /me/following/:creatorId` upsert. `DELETE` removes.
-- Skip onboarding = empty follows; nearby does **not** require follows (follows are a later personalization boost, optional v1.1: `trust_boost *= 1.15` if followed).
-- **v1 nearby does not filter to followed-only** unless `?followed=1`.
+- Skip onboarding = empty follows. **Nearby pins + Nearby list do not require follows.**
+- Map home has two list modes on the same `/places/nearby` route:
+  - **Nearby** (`followed=0`, default): all ready mentions in radius (or KL trending fallback). Powers **pins** and the Nearby picks list. `sort=rank|distance|recent`.
+  - **Following** (`followed=1`): places that have ≥1 ready `post` from a creator in `follows` for the authed user. **Trending** = `sort=rank` (same `weighted_rank`, `distance_decay` still applies). **New** = `sort=recent` (`MAX(posts.posted_at)` DESC among followed creators’ posts on that place).
+- `followed=1` without auth, or with an empty follow set → `{ items: [], fallback: "none", empty_reason: "no_follows" }`. **Do not** fall back to KL trending.
+- `followed=1` with follows but no matching places → `{ items: [], fallback: "none", empty_reason: "no_followed_mentions" }`.
+- Optional later boost on default Nearby: `trust_boost *= 1.15` if a mention is from a followed creator (does **not** hide unfollowed mentions).
 
 ### 6.7 Saves
 
@@ -487,7 +492,7 @@ Base: `/v1`. JSON. Errors:
 
 | Method | Path | Auth | Query / body | Response highlights |
 |---|---|---|---|---|
-| GET | `/places/nearby` | no | `lat, lng, radius_km=5, q, halal, sort=rank\|distance\|recent, followed=0, cursor` | `{ items[], fallback: "radius"\|"kl_trending", next_cursor }` |
+| GET | `/places/nearby` | no | `lat, lng, radius_km=5, q, halal, category, sort=rank\|distance\|recent, followed=0\|1, cursor` | `{ items[], fallback: "radius"\|"kl_trending"\|"none", empty_reason?, next_cursor }` · `q` is **fuzzy** (name/area). `followed=1` is the Map **Following** tab (auth; see §6.6) |
 | GET | `/places/:id` | no | | place DTO + `good_pct`, `my_vote` if authed |
 | GET | `/places/:id/preview` | no | | compact card DTO |
 | GET | `/places/:id/posts` | no | `cursor, hide_sponsored` | posts DTO |
@@ -605,7 +610,7 @@ Without this, do not ship the map.
 - [ ] OTP vs magic-link vs Google-only for v1.  
 - [ ] Google vs Mapbox + monthly cap.  
 - [ ] Official KL polygon vs bbox in §6.1.  
-- [ ] Whether `followed=1` personalization ships in v1 (schema ready).  
+- [x] Map **Following** tab ships in v1 via `followed=1` + `sort=rank\|recent` (§6.6).  
 - [ ] Recency half-life tune after first week of data.  
 - [ ] Promote post-level ratings (`post_id`) — schema ready, APIs not.
 

@@ -15,8 +15,8 @@ Open http://localhost:5173 → login → location → follow → map.
 | Login | `login.html` |
 | Location | `location.html` |
 | Follow (onboarding) | `follow.html` |
-| Map + preview | `home.html` |
-| Nearby list | `discovery.html` |
+| Map + nearby list | `home.html` |
+| Saved | `saved.html` |
 | Place | `place.html` |
 | Good / Bad | `rate.html` |
 | Influencers | `influencers.html` |

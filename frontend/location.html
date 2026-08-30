@@ -12,13 +12,13 @@
     <script src="/js/theme.js"></script>
     <link rel="stylesheet" href="/css/app.css" />
   </head>
-  <body class="bg-map-background font-body-md text-body-md w-full h-screen overflow-hidden relative">
-    <div class="absolute inset-0 z-0">
+  <body class="bg-map-background font-body-md text-body-md w-full min-h-dvh overflow-y-auto relative">
+    <div class="fixed inset-0 z-0">
       <img class="w-full h-full object-cover opacity-40 blur-sm" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
       <div class="absolute inset-0 bg-gradient-to-t from-map-background via-map-background/60 to-transparent"></div>
     </div>
-    <main class="relative z-10 w-full h-full flex flex-col justify-end md:justify-center items-center p-margin-mobile">
-      <div class="w-full max-w-md bg-sheet-surface rounded-t-[24px] md:rounded-[24px] p-sheet-padding shadow-2xl border border-sheet-outline text-center">
+    <main class="relative z-10 w-full min-h-dvh flex flex-col justify-center items-center px-margin-mobile py-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <div class="w-full max-w-md bg-sheet-surface rounded-[24px] p-sheet-padding shadow-2xl border border-sheet-outline text-center">
         <div class="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 mx-auto">
           <span class="material-symbols-outlined text-primary-container text-4xl" style="font-variation-settings: 'FILL' 1">my_location</span>
         </div>
@@ -27,7 +27,7 @@
         <button id="use-loc" class="w-full bg-primary-container text-white font-title-md text-title-md py-4 px-6 rounded-2xl mb-3 flex items-center justify-center gap-2">
           <span class="material-symbols-outlined">my_location</span> Use my location
         </button>
-        <button id="browse" class="w-full bg-transparent text-on-surface-variant font-title-md text-title-md py-4 px-6 rounded-2xl border border-outline-variant">Browse KL</button>
+        <button id="browse" class="w-full bg-transparent text-on-surface-variant font-title-md text-title-md py-4 px-6 rounded-2xl border border-outline-variant">Follow Influencers</button>
       </div>
     </main>
     <script type="module">

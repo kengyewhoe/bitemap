@@ -11,7 +11,7 @@ export default defineConfig({
         location: resolve(__dirname, "location.html"),
         follow: resolve(__dirname, "follow.html"),
         home: resolve(__dirname, "home.html"),
-        discovery: resolve(__dirname, "discovery.html"),
+        saved: resolve(__dirname, "saved.html"),
         place: resolve(__dirname, "place.html"),
         rate: resolve(__dirname, "rate.html"),
         influencers: resolve(__dirname, "influencers.html"),
