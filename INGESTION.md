@@ -90,7 +90,9 @@ This is what makes the tiering work: resolution accumulates **per venue**, not p
 
 ## 3. Schema
 
-SPEC §4 stores `venue_posts.influencer_handle` as a plain string, deliberately — influencer records were deferred to §10. A per-influencer venue database is precisely what that string can't support, so this is where the influencer layer gets built. Three new tables; `venues` is untouched.
+> **Reconciled with SPEC, 30/08/2026.** This section was written against a draft where `venue_posts.influencer_handle` was a plain string and influencer records were deferred. SPEC now ships `influencers` and `recommendations` as v1 tables, which resolves most of what follows. **Only `influencer_venues` and `venue_candidates` remain to be added** — and `influencer_venues` may collapse into `recommendations` entirely once Tier A imports need a row with no post behind them. The `influencers` block below is kept for the fields SPEC does not yet carry: `content_type`, `best_tier`, `maps_list_url`, `personal_hashtag`.
+
+A per-influencer venue database needs the influencer to be a row, not a string. Three tables described here; `venues` is untouched.
 
 ```
 -- who we track, and what kind of creator they actually are
@@ -180,12 +182,16 @@ Sentiment, sponsorship detection, credibility scores — the SPEC §10 influence
 
 ## 5. Constraints we should not design around quietly
 
-**Instagram.** Hold the SPEC §10 line: **logged-out collection via managed providers only.** No authenticated scraper — the downside is account bans and a ToS breach, and the upside is marginal. Display stays on oEmbed permalinks; influencer photos are never rehosted (SPEC §9 risk 3).
+**Instagram.** Hold the SPEC §10 line: **logged-out collection via managed providers only.** No authenticated scraper — the downside is account bans and a ToS breach, and the upside is marginal.
+
+**Media.** SPEC §4.4 now settles this, and it settles it differently from the draft this document was written against. Venue photos and influencer avatars *are* scraped and self-hosted; that is an accepted risk with named mitigations (attribution via `photo_credit`, provenance in `*_source_url`, `photo_visible` as a one-flip takedown), not a prohibition. Posts themselves are still never rehosted — they render as official Instagram embeds.
+
+Two consequences for the pipeline. First, every tier that produces a venue must also produce media provenance, so `venue_candidates` carries the `photo_source` / `photo_source_url` pair through to the `venues` row rather than leaving the scrape workstream to backfill it. Second, the open question SPEC §4.4 flags — whether Google's Places photo caching terms permit the same handling as a scraped post image — lands squarely on Tier A, since Tier A is the tier that sources from Places. **Resolve it before Phase 1 ships, not after.**
 
 **Google Maps place lists.** This deserves a straight answer rather than a workaround. Programmatically scraping another user's Maps place list sits against Google's terms of service, and there is no public API for it. Two clean routes:
 
 1. **Human-in-the-loop import.** A person opens the list and captures it once per creator. At 30 creators this is an afternoon, and it is unambiguously fine.
-2. **Ask the creator.** At this scale a founder DM is realistic — and it converts a grey area into a partnership. It also opens the door to licensed photography, the cleanest available fix for `photo_url` under SPEC §9 risk 3, and to attribution that makes "Why it's here" stronger than an embed.
+2. **Ask the creator.** At this scale a founder DM is realistic — and it converts a grey area into a partnership. It also opens the door to **licensed photography**, which under SPEC §4.4 is now worth more than it was: the media stance there is an accepted risk carrying mitigations, and a creator's permission removes the risk outright for that creator's venues. Same conversation, two problems solved.
 
 Route 2 beats route 1 on every axis except speed. Recommend starting there, with the two creators who already have lists.
 
