@@ -1,361 +1,385 @@
-# BiteMap — v1 Specification
+# BiteMap — Product & Technical Specification
 
-> **Status:** v1 scope, locked
-> **One-liner:** Find good makan near you, and say whether it was worth it.
-> **Market:** Klang Valley only (KL, PJ, Subang, Cheras, Puchong).
-
----
-
-## 1. What v1 Is
-
-Three screens, one loop:
-
-**Login → see restaurants near me → open one → rate it good or bad.**
-
-That's the whole build. Everything else in the product idea (credibility scoring, automated ingestion, maps, social features) is deferred to §10 and must not enter v1.
-
-**What we're testing:** will people open BiteMap instead of Google Maps when deciding where to eat? If the nearby list isn't good enough to beat Google, no amount of scoring machinery fixes that. So v1 spends its effort on venue quality, not on algorithms.
-
-**Where the quality comes from:** every venue enters the database because a real Malaysian food influencer recommended it, and we record *who*. A place recommended by four different influencers is visibly better than one recommended by one. That signal is free — it needs no votes, no formula, and no extra screen.
+> **Status:** Draft for MVP build  
+> **Launch:** Kuala Lumpur metro · mobile web (PWA-first)  
+> **Sources:** [`archive/SPEC.md`](archive/SPEC.md) (original technical outline) + [`archive/Ryan_draft.md`](archive/Ryan_draft.md) (locked product decisions, 2026-08-30)  
+> **One-liner:** Right-now KL food map + community ranker for food influencers. Viral clips → real places → Legit vs Hype.  
+> **Companion doc:** [`SPEC_V1.md`](SPEC_V1.md) — a narrower, later v1 scope cap (Klang Valley, halal/price bands, hand-seeded content).  
+> The two are **not yet consolidated** and disagree on entity naming (`creators`/`places`/`posts` here vs `influencers`/`venues`/`recommendations` there) and on scope. Consolidation is pending a review round.
 
 ---
 
-## 2. Scope Cap
+## 1. Product vision
 
-**In — build exactly this**
+BiteMap centralizes fragmented social food reviews and turns them into **actionable “where should I eat right now” decisions** in KL, with a **community trust layer on creators**.
 
-| # | Feature | Definition of done |
-|---|---|---|
-| 1 | Login | Google sign-in. Account exists, session persists. |
-| 2 | Location | Device location granted → coords stored for the session. Denied → manual area picker. |
-| 3 | Nearby list | Restaurants within 5 km, nearest first. Name, photo, cuisine, price band, halal status, distance in km, **and how many influencers recommend it**. |
-| 4 | Restaurant detail | Full info + the influencer recommendations that put it there + Waze / Google Maps deeplink. |
-| 5 | Rating | One 👍 / 👎 per user per restaurant. Changeable. Counts shown on list and detail. |
+1. **Map** influencer recommendations to physical places (Google Place ID as source of truth).
+2. **Aggregate** posts into one restaurant profile (embeds, not hosted video).
+3. **Rank influencers** via community **Legit / Hype** stamps on tips.
 
-**Out — explicitly not v1**
+**Problem:** A user sees a food video, cannot tell if the place is genuinely good or paid hype, and cannot easily find it (or similar) nearby.
 
-- Automated ingestion, LLM extraction, scraping pipelines.
-- **Influencer screens of any kind** — no profile page, no "see everything they recommended", no leaderboard, no credibility score. The `influencers` table exists for data integrity and deduplication, not for a feature. This boundary is easy to cross by accident; don't.
-- Map view, drive-time estimates, PostGIS.
-- Filters and search of any kind. v1 *displays* halal, cuisine and price — it does not filter on them.
-- Opening hours, seasonal closures, "open now".
-- Following, comments, photo uploads, any UGC beyond the 👍/👎.
-- Anything outside Klang Valley.
+**Positioning:** “What’s actually good near you tonight — and which KL food accounts you can trust.”
 
-If a task doesn't serve one of the five rows above, it is not v1 work.
+**Not:** Yelp, Google reviews, a TikTok clone, or a social network.
 
 ---
 
-## 3. Flows
+## 2. Locked product decisions
 
-### 3.1 Onboarding — once
+| Decision | Call |
+|---|---|
+| Session 1 job | **Right now.** Location → nearby trending → place + clips → go. Not weekend planning. |
+| Core appeal | **Influencer ranker** (community trust), not a sharing/social graph. |
+| Share unit (later) | Place + influencer + verdict. Not required for MVP. |
+| Cold start | **Seed KL inventory** and **hand-score** a starter set of creators. No empty graph. |
+| Geography | **KL city metro only.** |
+| Influencers | **Inventory and users.** They can claim a profile. **Verification is manual.** |
+| Video | **oEmbed / official embeds only.** Thumbnails + link. **Do not host full videos.** |
+| Visit proof | **Honor system** (“I went”). No geo check-in required to vote. |
+| Voting | **One vote per user per post.** Auth required. Default: **lock after submit.** |
+| Launch surface | **Mobile web**, KL-focused. Not React Native for MVP. |
+
+---
+
+## 3. Who it’s for
+
+| Role | Job |
+|---|---|
+| Primary | Someone in KL deciding dinner in the next ~20 minutes |
+| Secondary | People who follow KL food accounts and want a **trust ranking** before they queue |
+| Creators | KL food influencers who want a public trust profile they can claim |
+
+**Out of scope for MVP:** tourists as a separate persona, group planning, multi-city, restaurant admin dashboards.
+
+---
+
+## 4. Goals and non-goals
+
+### Goals (MVP)
+
+- **Trending nearby** from recent influencer mentions (default **5 km**, KL only).
+- Place page with the **clips that made it trend** (oEmbed + summary).
+- Signed-in users stamp a post **Legit** or **Hype** (honor-system visit).
+- **Credibility score** per influencer + **KL leaderboard** (trust, not followers).
+- Influencers **request a claim**; ops **approves manually**.
+
+### Non-goals (MVP)
+
+- Share cards, Stories, referral loops, following graph.
+- Scrapers as the only supply; hosting TikTok/IG files.
+- Automatic visit verification / geofence as a vote gate.
+- Dietary/price as rank drivers; paid restaurant placement; auto-verified badges.
+- Native iOS/Android apps.
+
+---
+
+## 5. Success metrics
+
+**North star:** Sessions that end in a **place view** or **Directions tap**.
+
+**Secondary:** Nearby feed shows ≥3 places; votes/week (unique user × post); leaderboard visits; claim requests / approvals.
+
+**Guardrails:** Wrong-place match rate; vote farming; **no full video downloads from our origin**.
+
+Do not optimize for “posts ingested.”
+
+---
+
+## 6. User experience
+
+### 6.1 Quick-start (session 1 — default)
+
 | Step | Screen | Action | Outcome |
 |---|---|---|---|
-| 1 | Splash | One line of value prop, one button | — |
-| 2 | Login | Sign in with Google | `users` row created |
-| 3 | Location | System permission prompt | Granted → coords held for session |
-| 3b | Location denied | Area picker: Bangsar, TTDI, SS15, Damansara Uptown, Taman Connaught | Area centroid used as location |
+| 1 | Onboarding | Grant location, or **Browse Kuala Lumpur** | Coarse location or KL centroid. One screen, no carousel. |
+| 2 | Map (home) | App loads **Trending Nearby** | Night map + tray; places ranked by recent mentions within ~5 km, recency-weighted |
+| 3 | Map → place | Tap a restaurant | Profile: oEmbeds that drove the trend, thumbnail URLs, Legit vs Hype meter |
+| 4 | Place | Directions (system maps) or Save (optional) | User can go now |
 
-Location is asked **after** login so the prompt has context. Denial is a normal path, not an error — Malaysians in basement car parks and mall food courts will hit it constantly.
+### 6.2 Detailed discovery
 
-### 3.2 Nearby list — the home screen
-| Step | Action | Outcome |
-|---|---|---|
-| 1 | App opens | Restaurants within 5 km, nearest first |
-| 2 | Scroll | Straight-line km, one decimal (`1.2 km`) |
-| 3 | Nothing within 5 km | Show the nearest 10 regardless of distance + a line saying coverage is Klang Valley for now |
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Restaurant profile | Open a place | Aggregated mentions, embed players, photos as **thumbnail URLs only**, Legit vs Hype meter (from post votes) |
+| 2 | Restaurant profile | “High-trust creators only” | Filter to creators above a threshold. **Hide this chip until enough scored creators exist** (recommend ≥15). |
+| 3 | Restaurant profile | “Hide sponsored” | Hides posts tagged sponsored |
 
-Each card: photo (`venues.photo_url`, served from our own storage — see §4.4), name, area, cuisine tags, price band, halal status, distance, `👍` count, and **`4 influencers`** when more than one has recommended it.
+### 6.3 Influencer evaluation (core loop)
 
-### 3.3 Restaurant detail
-| Section | Content |
-|---|---|
-| Header | Photo, name, area, distance |
-| Facts | Cuisine tags, price band, halal status, `hours_note` free text (`"Tutup Isnin"`, `"6pm sampai habis"`) |
-| Why it's here | **Recommended by** avatar + `@handle` for each influencer — then their posts as official Instagram embeds, behind a tap-to-load facade (§4.4) |
-| Action | **Waze** button (primary) + Google Maps button |
-| Rating | 👍 / 👎 with current counts |
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Influencer profile | Open a creator | History of recommendations + running score. Claimed vs unclaimed is obvious. |
+| 2 | Post | User eats, returns, stamps **Legit** or **Hype** | Honor “I went.” Copy must **not** say “verified visit.” |
+| 3 | System | Vote recorded | Unique `(user_id, post_id)`. Updates `legit_count` / `hype_count` / `credibility_score`. |
+| 4 | Rank / leaderboard | Browse KL ranking | Creators ranked by **community trust**, not follower count |
 
-Avatars and handles are plain display elements, not links to a profile screen. There is no profile screen in v1.
+### 6.4 Claim flow
 
-Embeds mount on tap, not on page load. Instagram's `embed.js` plus one iframe per post is too much to load unprompted on a Malaysian mobile connection, and `media_type` lets the facade reserve the correct aspect ratio so nothing janks when the real embed swaps in.
-
-Waze is primary. It is what Malaysians actually open for last-mile navigation.
-
-### 3.4 Rating
-- One rating per `(user_id, venue_id)`. Tapping the other option flips it; tapping the same option clears it (the row is deleted).
-- Counts display as `👍 12 · 👎 3`. A percentage appears only at **≥ 5 ratings** — below that it reads `Baru — not enough ratings yet`.
-- Ratings do not affect list ordering in v1. This keeps the first cohort's votes from being distorted by an untested ranking formula.
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Unclaimed profile | **Claim** | Form: handles + proof (bio link or screenshot) |
+| 2 | Ops queue | Manual approve / reject | `pending` → `verified` \| `rejected` |
+| 3 | Claimed profile | Creator may flag sponsored, suggest place corrections | Ops confirms corrections. Creator **cannot** delete community votes. |
 
 ---
 
-## 4. Data Model
+## 7. Information architecture (mobile web)
 
-Six tables and one view. Postgres. No PostGIS in v1 — `lat`/`lng` as `double precision`, distance via haversine in SQL over a few hundred rows.
+**Tabs**
 
-**The shape:** two independent write paths converge on `venues`. Curation flows in through `influencers → recommendations`; user opinion flows in through `users → ratings`. Neither path owns the venue — both reference it. This is what makes "recommended by 4 influencers, 12 of 15 users say sedap" a single, cheap query.
+1. **Map** — default home (session 1)
+2. **Rank** (or “Creators”) — leaderboard + search — first-class; this is the brand
+3. **Saved** — optional MVP; cut if needed
+4. **Me** — votes, claim entry, city = KL
 
-```
-[influencers] ──1:N──> [recommendations] ──N:1──┐
-                                                 ├──> [venues]
-[users] ──────1:N──> [ratings] ─────────────N:1──┘
-```
-
-### `influencers`
-The curation source. Exists so the same person is one row no matter how many places they recommend — that is what makes deduplication and "4 influencers" possible.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | PK | |
-| `handle` | text, **unique** | `@makanwithdanny`. Uniqueness is what makes the count trustworthy. |
-| `display_name` | text | |
-| `platform` | enum | `instagram` — single value in v1 |
-| `follower_count` | int, nullable | Snapshot at seeding. Recorded, not used. |
-| `is_active` | bool | Default `true`. Lets us stop seeding from someone without deleting history. |
-| `avatar_url` | text | Shown beside the handle on the detail page. **Our storage**, not their CDN. |
-| `avatar_source_url` | text, nullable | Where it was fetched from. Provenance, not for display. |
-| `avatar_fetched_at` | timestamptz | Profile pictures change; this drives the refresh job. |
-| `content_type` | enum | `venue_reviewer` \| `recipe` \| `travel` \| `media_brand` \| `photographer`. Only `venue_reviewer` is seeded from — see §8 step 1. |
-| `is_operator` | bool | Default `false`. The creator owns or runs a venue. |
-| `operator_venue_id` | FK → `venues.id`, nullable | Their own shop, so recommendations of it can be discounted. |
-| `maps_list_url` | text, nullable | Some creators publish a public Google Maps place list in their link-in-bio — names, addresses and coordinates already resolved, by them, for free. Roughly one creator in four. Not used by the UI; it is a shortcut for whoever is seeding. |
-
-All four are filled in by hand while seeding and cost no engineering. `content_type` and `is_operator` do real v1 work — see §8 and §9 risk 11.
-
-**No `credibility_score` in v1.** The moment that column exists, someone builds a leaderboard.
-
-### `recommendations`
-One row per post. Replaces the old `venue_posts` — same job, but it now links two real entities instead of dangling off a venue with a string attached.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | PK | |
-| `influencer_id` | FK → `influencers.id` | |
-| `venue_id` | FK → `venues.id` | |
-| `post_url` | text, **unique** | Canonical permalink. Uniqueness prevents the same post being entered twice and inflating a venue's count. |
-| `posted_at` | date | Sort order on the detail page, newest first |
-| `note` | text, nullable | Seeder's own line — *"specifically the sambal petai"* |
-| `media_type` | enum | `reel` \| `post` \| `carousel`. A Reel embed is portrait and far taller than a photo post — without this the detail page can't reserve the right box and shifts layout on load. |
-| `embed_ok` | bool | Default `true`. Posts get deleted or go private; flip this to hide a dead embed **without** deleting the row — the recommendation still happened, so the influencer count must not drop. |
-| `is_self_interest` | bool | Default `false`. True when the creator owns this venue. **Excluded from `influencer_count`** — an owner posting about their own shop is not corroboration. |
-
-### `venues`
-Referenced by both paths, derived from neither — so a place can be seeded before anyone posts about it.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | PK | |
-| `name` | text | Primary display name |
-| `name_aliases` | text[] | Chinese / Malay / romanisation variants. Not searched in v1 — captured at seeding so the work isn't repeated when search ships. |
-| `area` | text | `Bangsar`, `SS15`, `TTDI`. Plain text — no `areas` table until boundaries are needed. |
-| `lat` / `lng` | double precision | |
-| `address` | text | Malaysian format, as written on the shopfront |
-| `venue_type` | enum | `restaurant` \| `stall` \| `cafe` \| `kopitiam` \| `mamak` |
-| `cuisine_tags` | text[] | 1–3 per venue, see Appendix A |
-| `price_band` | enum | See 4.1 |
-| `halal_status` | enum | See 4.2 |
-| `hours_note` | text | Free text, human-written. Replaces an hours/closures schema entirely. |
-| `photo_url` | text | **Our storage.** See §4.4. |
-| `photo_source` | enum | `influencer_post` \| `google_places` \| `own` \| `licensed`. Handling rules differ per source, so the row must know which it is. |
-| `photo_source_url` | text, nullable | Original location. Without it a takedown request can't be actioned. |
-| `photo_credit` | text, nullable | Displayed on the card — `@handle`, or the attribution string Google returns with the photo. |
-| `photo_fetched_at` | timestamptz | |
-| `photo_visible` | bool | Default `true`. Pulls an image in one flip without touching the venue row. |
-| `google_place_id` | text, nullable | Builds the Maps deeplink. Null for stalls Google doesn't list. |
-| `is_published` | bool | Default `false`. Nothing reaches the app until a human flips it. |
-
-### 4.1 `price_band`
-Per person, typical order. Granular at the low end, where Malaysian price sensitivity actually sits.
-
-`under_rm10` · `rm10_25` · `rm25_50` · `rm50_plus`
-
-### 4.2 `halal_status`
-Multi-state and **two-sided** — one segment filters for certification, another filters for pork, and both treat a wrong answer as a betrayal. Never collapsed to a boolean.
-
-| Value | Meaning |
-|---|---|
-| `jakim_certified` | Holds a JAKIM / state authority certificate |
-| `muslim_owned` | Muslim-owned, no formal certificate |
-| `pork_free` | No pork, but uncertified and/or serves alcohol |
-| `non_halal` | Serves pork |
-| `unknown` | **Default.** Shown as "Not verified". Never inferred optimistically. |
-
-### 4.3 `venue_cards` — the view the app reads
-
-This is how recommendations "reflect on" the venue, and it is a **view, not a trigger**. Counter columns on `venues` would drift the first time a row was deleted or double-entered; a view cannot.
-
-| Column | Derivation |
-|---|---|
-| everything on `venues` | — |
-| `influencer_count` | `count(distinct influencer_id) filter (where not is_self_interest)` |
-| `last_recommended_at` | `max(recommendations.posted_at)` |
-| `good_count` / `bad_count` | counts over `ratings` |
-
-At 150 venues this aggregates in single-digit milliseconds. Revisit only when the row count makes it measurable — a materialised view refreshed on write is the next step, not a counter column.
+Restaurant and post/clip are **pages or sheets**, not tabs.
 
 ---
 
-### 4.4 Media handling
+## 8. MVP scope
 
-Venue photos and influencer avatars are sourced by scraping influencer socials and Google Places. That is a deliberate decision (§9 risk 3); these are the rules that make it work in production.
+### In
 
-**Self-host the bytes, always.** Instagram CDN URLs — post media and profile pictures alike — are signed and expire. Storing the URL produces broken images within days. The scrape job downloads the file into our own bucket and writes that path to `photo_url` / `avatar_url`; the original URL goes to `*_source_url` for provenance only and is never rendered.
+| Area | Requirement |
+|---|---|
+| Geo | KL metro bounding box / area allowlist. Nearby = **5 km**. |
+| Feed | Recent mentions; recency decay (prefer last **14–30 days**). |
+| Place page | Name, area, category, mention count, meter, posts via **oEmbed**. |
+| Post | Platform, URL, embed, summary, place, influencer, sponsored flag. |
+| Voting | Auth required. Honor “I went.” **One vote per user per post.** Default lock after submit. |
+| Credibility | `legit / (legit + hype)` + **minimum vote floor**. Hand-seed launch set. |
+| Leaderboard | KL, trust-based, show vote volume. |
+| Claim | Request + manual verify. |
+| Ingest | **Curated / manual + light collectors.** LLM extract **on ingest only**, cached. Match to **Google Place ID**. |
+| Media | Thumbnail URL + oEmbed HTML. **Zero video bytes on our CDN.** |
 
-**Provenance is a schema requirement, not paperwork.** Every media row records where it came from, when, and under which source rule. Without `photo_source_url` a takedown request is unactionable, and without `photo_source` you can't apply the right rule — Google's Places terms restrict caching photo content in ways that don't apply to a scraped post image, so the two cannot share a code path. **The scrape workstream should confirm the current Places photo caching terms before treating the two sources alike.**
+### Out / later
 
-**Credit is displayed.** `photo_credit` renders on the card. It costs nothing, and an attributed image draws far fewer complaints than an unattributed one.
+- Share cards, OG images, Stories.
+- Geo visit proof; vote weight by account age (design now, enforce if abused).
+- Auto claim, multi-city, native apps.
+- Following, comments, DMs.
+- Heavy scrapers as primary supply.
 
-**`photo_visible` is the kill switch.** One boolean flip removes an image app-wide without deleting the venue, its recommendations, or its ratings.
+### Launch inventory (cold start)
 
-**Posts themselves are never rehosted.** The detail page renders official Instagram embeds — Meta's own iframe, attribution intact, and a deleted post disappears from our app on its own. This line holds regardless of the photo decision: scraping a still for a list card and republishing someone's video are different acts.
+- **~80–150 places**, **~30–50 creators**, each with ≥1 mapped post.
+- Hand-score creators so the leaderboard is not empty.
+- Thin GPS: show **KL trending**, never a blank map.
+
+---
+
+## 9. Trust, spam, sponsored
+
+**Rubric (show once in UI)**
+
+- **Legit:** Matched the clip; worth the trip/queue.
+- **Hype:** Camera bait, bait-and-switch, not worth queue/price, or nothing like the video.
+- Stamp scores the **tip/post** (and thus the creator), not a 1–5 restaurant review.
+
+**Rules**
+
+- One vote per `(user_id, post_id)`.
+- Store `account_created_at` for later down-weighting.
+- Sponsored: **manual + creator claim + user report**.
+- Reports: wrong place, closed, spam, not food, impersonation.
+
+---
+
+## 10. Data, matching, legal
+
+- Venue source of truth: **Google Place ID**. LLM **proposes**; human or high-confidence match **commits**. Never match on name alone (food courts, stalls, duplicate names).
+- Closed/moved: Places operational status; dim “might be closed.”
+- Identity: `creator_id` (person) vs `platform_account` (handle).
+- **oEmbed** for TikTok/IG. If embed fails: **thumbnail + open original**.
+- **No ripping or storing full videos.** Takedown = drop embed; keep metadata if legal.
+- Claim/remove for names/faces on rank pages.
+- Location: coarse for feed; no high-precision tracks. Guest can browse KL; **account required to vote.**
+
+---
+
+## 11. Data model
+
+**Relationships:** `creators` 1—N `platform_accounts`; `creators` 1—N `posts` N—1 `places`; `user_ratings` N—1 `posts`; unique `(user_id, post_id)` on ratings.
 
 ### `users`
-| Field | Type | Notes |
-|---|---|---|
-| `id` | PK (uuid) | Supabase auth user id |
-| `email` | text | From Google |
-| `display_name` | text | Not shown to other users in v1 |
-| `created_at` | timestamptz | |
 
-### `ratings`
 | Field | Type | Notes |
 |---|---|---|
 | `id` | PK | |
-| `user_id` | FK → `users.id` | |
-| `venue_id` | FK → `venues.id` | |
-| `rating` | enum | `good` \| `bad` |
-| `updated_at` | timestamptz | |
+| `auth` | — | Provider ids as needed |
+| `display_name` | string | |
+| `created_at` | datetime | For later vote weighting |
+| `last_city` | string | `KL` |
+| `role` | enum | `user` \| `ops` |
 
-Unique constraint on `(user_id, venue_id)`.
+### `creators`
 
-## 5. Nearby Logic
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | Person-level identity (replaces flat `influencers`) |
+| `name` | string | Display name |
+| `niche_tags` | string[] | e.g. `["mamak", "budget-eats"]` |
+| `credibility_score` | float | Derived; seed until vote floor |
+| `legit_count` | int | |
+| `hype_count` | int | |
+| `claim_status` | enum | `unclaimed` \| `pending` \| `verified` \| `rejected` |
+| `claimed_by_user_id` | FK → `users` | Nullable |
+| `seed_score_notes` | text | Hand-score rationale |
 
-```sql
-SELECT * FROM venue_cards
-WHERE is_published
-  AND haversine(:user_lat, :user_lng, lat, lng) <= 5
-ORDER BY distance_km ASC, influencer_count DESC
-LIMIT 50
-```
+### `platform_accounts`
 
-Distance decides the order. `influencer_count` breaks ties only — it is a display signal in v1, not a ranking one.
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `creator_id` | FK → `creators` | |
+| `platform` | enum | `tiktok` \| `instagram` \| … |
+| `handle` | string | |
+| `external_id` | string | Nullable |
+| `follower_count` | int | Optional snapshot; **not** used for leaderboard |
 
-Drive time is the honest metric for KL traffic and is on the post-v1 list, but it needs a routing call per venue per request. Not worth the cost or latency before we know people use the list at all.
+### `places`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | Replaces `restaurants` |
+| `provider_place_id` | string | Google Place ID (or equivalent) |
+| `name` | string | |
+| `location` | geography(Point) | PostGIS |
+| `address` | string | |
+| `area` | string | e.g. Bangsar, Cheras, Jalan Alor |
+| `category` | string | Cuisine / type |
+| `operational_status` | string | From Places |
+| `total_mentions` | int | Denormalized |
+| `weighted_rank` | float | Mentions × recency × creator credibility × distance × anti-spam |
+
+### `posts`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `creator_id` | FK → `creators` | |
+| `platform_account_id` | FK → `platform_accounts` | |
+| `platform` | enum | |
+| `post_url` | string | Canonical source |
+| `embed_html` / `oembed_cache` | text | Cached oEmbed |
+| `thumbnail_url` | string | No video files on our storage |
+| `content_summary` | text | LLM on ingest, cached |
+| `sentiment_score` | float | LLM on ingest, cached |
+| `place_id` | FK → `places` | Nullable until matched |
+| `timestamp` | datetime | Original post time |
+| `is_sponsored` | bool | Manual / claim / report |
+| `ingest_status` | string | |
+
+### `user_ratings`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `user_id` | FK → `users` | |
+| `creator_id` | FK → `creators` | Denormalized for leaderboard |
+| `post_id` | FK → `posts` | Unique with `user_id` |
+| `rating_type` | enum | `legit` \| `hype` |
+| `timestamp` | datetime | |
+
+### `claim_requests`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `creator_id` | FK | |
+| `user_id` | FK | |
+| `proof_note` | text | |
+| `status` | enum | `pending` \| `approved` \| `rejected` |
+| `reviewed_by` | FK | Nullable |
+| `reviewed_at` | datetime | Nullable |
+
+### Optional / ops
+
+- **`saves`:** `user_id`, `place_id`, list `want` \| `been`
+- **`reports`:** target, reason, status
+- **`ingest_jobs`:** url or handle, status, last_error
+- **`rank_snapshots`:** weekly leaderboard debug
+
+**Place rank:** mentions × recency × creator credibility × distance × hide-spam. Same formula on map and list.
+
+**Creator rank:** community ratio + vote floor + recency of votes; **not** followers. Use seed scores until the floor is met.
 
 ---
 
-## 6. Tech Stack
+## 12. Tech stack
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| App | Next.js PWA (mobile web) | No app-store review cycle, links are shareable, one codebase. React Native follows once retention is proven — not before. |
-| Auth | Supabase Auth, Google provider | Managed; no password handling |
-| Database | Supabase Postgres | Plain lat/lng; PostGIS when a map view needs it |
-| API | Next.js route handlers | The whole API is ~5 endpoints |
-| Admin | Supabase table editor | Seeding is manual (§8). Do not build an admin UI. |
-| Storage | Supabase Storage + CDN | Self-hosted media. Source CDN URLs expire, so hotlinking is not an option. |
-| Maps | Waze + Google Maps deeplinks | Zero API cost — deeplinks, not the Places API |
-| Hosting | Vercel | |
-
-No Redis. No NestJS. No Python ingestion service. No LLM calls anywhere in v1 — those belong to the automated pipeline, which is post-v1.
+| Client | **Mobile web** (React or similar), PWA-first | KL launch; light embeds; no native app in MVP |
+| API | Node.js + NestJS | Structured, scalable API |
+| Database | PostgreSQL + PostGIS | Relational + KL proximity |
+| Cache | Redis | Trending by geohash, oEmbed cache, leaderboard |
+| Ingest | **Manual/curated first**; Python collectors later + LLM on ingest | Entity/sentiment cached; not per page view |
+| Maps | Google Maps Platform / Mapbox | Map + Places; cache geocode; KL only |
+| Media | oEmbed + thumbnails | **No object storage for video** |
+| Auth | Email or social (pick one cheap path) | Required for vote and claim |
 
 ---
 
-## 7. Localisation Rules
+## 13. UI principles
 
-Binding for schema, copy, and UI.
-
-- **km, never miles.** One decimal.
-- **RM** prefixed, comma thousands. Dates DD/MM/YYYY.
-- **Areas, not postcodes.** Malaysians navigate by Bangsar / SS15 / TTDI.
-- **Register:** conversational Malaysian English. "Jom makan" over "Discover Dining". Light touch — heavy Manglish in UI reads as try-hard.
-- **"Western"** here means the RM12 chicken-chop stall genre, not fine dining.
-- Halal status is never guessed, never rounded up, and `unknown` is displayed plainly.
-
----
-
-## 8. Content Seeding
-
-Influencer-first, because that is the order the information actually arrives in.
-
-1. Add ~30 Klang Valley food influencers to `influencers` — **filtered, not ranked**. Follower count is close to useless here: of eleven top-ranked Malaysian food creators, five are recipe and home-cook accounts that review no venues at all, one of them with 4.4M followers. Set `content_type` on entry and seed only from `venue_reviewer`. Set `is_operator` while you're on their profile. While you're there, check their link-in-bio for a public Maps place list and record it in `maps_list_url` — it is a pre-resolved venue list you can seed straight from.
-2. Work through one influencer's recent posts.
-3. For each genuine recommendation, **look up the venue first**. Already there? Add a `recommendations` row pointing at it — its count goes to 2, and that venue just got better. Not there? Create it, filling every field including `halal_status` and `hours_note`, then add the recommendation.
-4. Capture media: one venue photo and the influencer's avatar, downloaded into our bucket with `*_source_url`, `photo_credit` and `photo_source` filled in. **Owned by the separate scrape workstream** — §4.4 is the contract it writes against.
-5. Flip `is_published` once the venue's fields are complete and a photo exists.
-
-Step 3 is the entire point of this model. Venue-first seeding would have quietly created duplicate rows for the same stall and thrown away the corroboration signal.
-
-**Target: 150 published venues across 5 Klang Valley areas before launch** — roughly 30 per area, enough that the nearby list is never thin.
-
-Deliberately manual, and not a stopgap. At this scale hand-seeding beats any pipeline on the metric that matters — cost per *trustworthy* venue. It forces a person to see every venue we ship, which is the quality the product is actually selling. Automation makes volume cheap and trust expensive; volume is not the bottleneck.
+- Session 1 = **map**: night map, heat pins, selected pin → place + embeds.
+- **Ranker is visible** (trust number + leaderboard, not buried).
+- **Stamps** (Legit / Hype), not stars.
+- Light client: poster/thumbnail + official embed; no third-party files on our origin.
+- KL copy: areas, **RM**, **km**, English + light Manglish OK.
+- Sharing is **not** a design requirement. Later preview = place + creator + verdict.
+- Empty/thin → **KL trending**, never a dead map.
+- Claimed vs unclaimed obvious on creator pages.
 
 ---
 
-## 9. Risks
+## 14. Risks and mitigations
 
-| # | Risk | Mitigation |
-|---|---|---|
-| 1 | **Thin list** — user opens the app and sees 3 places | 150-venue seeding target; fall back to nearest 10 when nothing is within 5 km |
-| 2 | **Halal misclassification** — severe trust failure in both directions | Default `unknown`; human-set only; never inferred |
-| 3 | **Media rights** — venue photos and avatars are scraped, not licensed | Accepted deliberately. Mitigations: attribution displayed via `photo_credit`; provenance stored in `*_source_url` so any request is actionable; `photo_visible` is a one-flip takedown; and posts themselves stay as official embeds, never rehosted. Worth revisiting before any paid marketing push, when visibility raises the stakes. |
-| 4 | **Location denied or inaccurate** (basements, malls) | Manual area picker is a first-class path, not an error state |
-| 5 | **Rating brigading** | Login required; one rating per user per venue enforced by unique constraint |
-| 6 | **Inflated influencer counts** — same post entered twice, or one person counted as two handles | `post_url` unique; `handle` unique; count is `distinct influencer_id`. All three are needed. |
-| 7 | **Influencer-table scope creep** | §2 forbids influencer screens outright. The table is infrastructure, not a feature. |
-| 8 | **Expiring source URLs** — scraped media hotlinked instead of downloaded | Schema forbids it: `photo_url` and `avatar_url` are our storage; source URLs live in separate columns and are never rendered. |
-| 9 | **Google Places photo terms** differ from scraped post media | `photo_source` keeps the two on separate code paths. The scrape workstream confirms current terms before launch. |
-| 10 | **Dead embeds** — a post is deleted and the detail page shows a blank box | `embed_ok = false` hides it while keeping the recommendation row, so the influencer count stays honest. |
-| 11 | **Creator-operators inflate the count** — a creator who owns a restaurant posts about it constantly | `is_operator` on the influencer, `is_self_interest` on the recommendation, and `influencer_count` filters those out. A 127K-follower creator in the sample opened his own restaurant; his last 30 posts yield exactly one venue — that one. |
+| # | Risk | Impact | Mitigation |
+|---|---|---|---|
+| 1 | Platform ToS / API cost / scraping limits | Blocks ingest or legal exposure | oEmbed + public URLs; **curated profiles first**; no video hosting; scrapers are not the only supply |
+| 2 | Matching accuracy (wrong place) | Trust loss | Place ID; LLM proposes; human review on low confidence |
+| 3 | Paid / incentivized hype | Scores meaningless | Sponsored flag (manual + claim + report); community score |
+| 4 | Empty leaderboard | Ranker feels fake | Seed + hand-score; vote floor |
+| 5 | Vote farming | Distorted ranks | 1 vote / user / post; later account age + rate limits |
+| 6 | Honor-system lies | Noisy scores | Accept on MVP; do not claim “verified visit” |
+| 7 | Embed breakage | Dead clips | Thumbnail + outbound link |
+| 8 | Claim impersonation | Fake verified creators | Manual verify only |
 
 ---
 
-## 10. Deferred — Post-v1 Backlog
+## 15. Rollout
 
-Cut deliberately. Preserved so nothing is re-litigated, and so v1 schema choices don't block them.
+1. Seed KL places + posts + hand-scores.
+2. Ship Map + place + embed + auth + vote + creator pages + leaderboard + claim form.
+3. Ops queue for claims and mismatch reports.
+4. Only then deepen ingest automation.
 
-- **Credibility layer:** `credibility_score`, Legit-vs-Hype voting on recommendations, leaderboards, "top-rated creators only". The `influencers` and `recommendations` tables are already the right shape to carry these.
-- **Influencer screens:** profile page, full recommendation history. The query works today; the screen is post-v1.
-- **Automated ingestion:** unscheduled and unspecified. Revisit only when hand-seeding is measurably the constraint on growth — it is not, at 150 venues. Two things to carry forward when it is: collection stays logged-out via managed providers (never authenticate a collector), and PDPA-wise we store public post URLs and handles, never scraped personal data.
-- **Venue resolution ladder:** IG location tags → Google Places matching → `match_confidence` → review queue. (v1's manual lookup in §8 step 3 is this done by hand.)
-- **Time:** `venue_hours`, `venue_closures` (Raya, CNY), "open now".
-- **Geo:** map view, PostGIS, drive-time ranking, `areas` table with boundaries and aliases.
-- **Discovery:** search, halal filter, cuisine filter, price filter, area browse.
-- **Structure:** `parent_venue_id` for stalls inside food courts, per-field provenance, amenities (parking, DuitNow QR, TnG).
-- **Media:** a `media` table for multiple photos per venue and galleries. v1 is one photo per venue, so flat columns keep the list query single-table.
-- **Performance:** materialised `venue_cards` refreshed on write, once the live view is measurably slow.
-- **Expansion:** Penang, JB. TikTok. Bazaar Ramadan seasonal mode.
-- **Native app:** React Native, once web retention justifies it.
+**Launch line:** KL metro, mobile web, right-now map + influencer ranker.
 
 ---
 
-## 11. Decisions
+## 16. Open items
 
-Previously open, now settled for v1.
+**Answered (were open in the original SPEC)**
 
-| Question | Decision |
-|---|---|
-| Auth model | Google sign-in required. Rating needs an account; browsing does not. |
-| Rating granularity | Venue-level 👍/👎, one per user. No post-level or influencer-level scoring. |
-| Does rating affect ordering? | No. Distance only. |
-| Does influencer count affect ordering? | Tie-break only. Displayed, not ranked on. |
-| Minimum ratings before showing a percentage | 5 |
-| Are venues derived from recommendations? | No — referenced. A venue can exist with zero recommendations. |
-| How does the count reach the venue? | A view (`venue_cards`), not a trigger or counter column. |
-| Ingestion cadence | Manual, continuous, influencer-first |
-| Who staffs review | Founder. There is no queue — nothing is auto-created. |
-| Halal sourcing | Human-set per venue at seeding. No JAKIM scrape. |
-| Search radius | 5 km, straight-line |
-| Where do venue photos come from? | Scraped from influencer socials and Google Places. Separate workstream; §4.4 is the contract. |
-| Do we hotlink source media? | Never. Bytes are downloaded to our storage — source URLs are signed and expire. |
-| Do we rehost the posts themselves? | No. Official Instagram embeds, tap-to-load. |
-| Influencer avatars in v1? | Yes, on the detail page beside the handle. Still no profile screen. |
-| Platforms | Instagram only |
+- [x] Launch geography: **KL metro**.
+- [x] Auth: **accounts required to vote**; guests can browse.
+- [x] Legal on re-hosting photos/video: **do not host**; oEmbed + thumbnail URLs only.
+- [x] Restaurant meter: **aggregate of post-level Legit/Hype votes**.
+- [x] Credibility (v1): `legit / (legit + hype)` + **minimum vote floor**; seed until then. Decay half-life still open.
+- [x] “Top rated” filter: hide until **≥15** scored creators; exact numeric threshold still TBD.
 
----
+**Still open**
 
-## Appendix A — Cuisine Tags
-
-Generic taxonomies ("Chinese", "Asian") are useless here. One flat list of how Malaysians actually describe a place. Pick 1–3 per venue.
-
-`mamak` · `kopitiam` · `economy_rice` (chap fan / nasi campur) · `zi_char` (tai chow) · `nasi_kandar` · `banana_leaf` · `bak_kut_teh` · `dim_sum` · `steamboat` · `roti_canai` · `nasi_lemak` · `hawker_stall` · `cafe` · `western` · `japanese` · `korean` · `thai` · `nyonya`
+- [ ] Lock vs allow vote change after submit (default: lock).
+- [ ] Exact KL metro boundary vs named-area allowlist.
+- [ ] Places provider (Google vs Mapbox) and budget cap.
+- [ ] Auth provider.
+- [ ] Whether **Saved** ships in v1.
+- [ ] Exact `weighted_rank` coefficients and recency half-life.
+- [ ] Credibility decay half-life after v1 formula.
+- [ ] Ingestion cadence once collectors exist (daily batch is enough for curated MVP).
