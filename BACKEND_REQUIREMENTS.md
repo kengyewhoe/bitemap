@@ -160,6 +160,7 @@ create table public.creators (
   avatar_source_url text,   -- original CDN URL, for provenance only
   avatar_fetched_at timestamptz,
   niche_tags text[],
+  maps_list_url text,       -- creator's public Google Maps place list, if any (link-in-bio) — seeding shortcut recorded at intake, not used by the UI
   content_type creator_content_type,   -- nullable: set by ops at seed time, never inferred
   is_operator boolean not null default false,
   is_active boolean not null default true,
