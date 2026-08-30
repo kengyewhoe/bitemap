@@ -164,6 +164,7 @@ create table public.creators (
   content_type creator_content_type,   -- nullable: set by ops at seed time, never inferred
   is_operator boolean not null default false,
   is_active boolean not null default true,
+  notes text,               -- internal seeding/ops notes, never rendered in the app
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -214,6 +215,7 @@ create table public.places (
   photo_fetched_at timestamptz,
   photo_visible boolean not null default true,   -- kill switch
   status place_status not null default 'draft',  -- API only ever lists 'published'
+  notes text,               -- internal seeding/ops notes, never rendered in the app
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint places_published_has_coords check (
