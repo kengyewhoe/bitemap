@@ -183,6 +183,21 @@ Multi-state and **two-sided** — one segment filters for certification, another
 | `non_halal` | Serves pork |
 | `unknown` | **Default.** Shown as "Not verified". Never inferred optimistically. |
 
+### 4.3 `venue_cards` — the view the app reads
+
+This is how recommendations "reflect on" the venue, and it is a **view, not a trigger**. Counter columns on `venues` would drift the first time a row was deleted or double-entered; a view cannot.
+
+| Column | Derivation |
+|---|---|
+| everything on `venues` | — |
+| `influencer_count` | `count(distinct influencer_id) filter (where not is_self_interest)` |
+| `last_recommended_at` | `max(recommendations.posted_at)` |
+| `good_count` / `bad_count` | counts over `ratings` |
+
+At 150 venues this aggregates in single-digit milliseconds. Revisit only when the row count makes it measurable — a materialised view refreshed on write is the next step, not a counter column.
+
+---
+
 ### 4.4 Media handling
 
 Venue photos and influencer avatars are sourced by scraping influencer socials and Google Places. That is a deliberate decision (§9 risk 3); these are the rules that make it work in production.
@@ -215,21 +230,6 @@ Venue photos and influencer avatars are sourced by scraping influencer socials a
 | `updated_at` | timestamptz | |
 
 Unique constraint on `(user_id, venue_id)`.
-
-### 4.3 `venue_cards` — the view the app reads
-
-This is how recommendations "reflect on" the venue, and it is a **view, not a trigger**. Counter columns on `venues` would drift the first time a row was deleted or double-entered; a view cannot.
-
-| Column | Derivation |
-|---|---|
-| everything on `venues` | — |
-| `influencer_count` | `count(distinct influencer_id) filter (where not is_self_interest)` |
-| `last_recommended_at` | `max(recommendations.posted_at)` |
-| `good_count` / `bad_count` | counts over `ratings` |
-
-At 150 venues this aggregates in single-digit milliseconds. Revisit only when the row count makes it measurable — a materialised view refreshed on write is the next step, not a counter column.
-
----
 
 ## 5. Nearby Logic
 
@@ -311,8 +311,8 @@ Deliberately manual. It is faster than building the pipeline, it produces the la
 | 7 | **Influencer-table scope creep** | §2 forbids influencer screens outright. The table is infrastructure, not a feature. |
 | 8 | **Expiring source URLs** — scraped media hotlinked instead of downloaded | Schema forbids it: `photo_url` and `avatar_url` are our storage; source URLs live in separate columns and are never rendered. |
 | 9 | **Google Places photo terms** differ from scraped post media | `photo_source` keeps the two on separate code paths. The scrape workstream confirms current terms before launch. |
-| 11 | **Creator-operators inflate the count** — a creator who owns a restaurant posts about it constantly | `is_operator` on the influencer, `is_self_interest` on the recommendation, and `influencer_count` filters those out. INGESTION.md Finding 3 documents a 127K creator whose last 30 posts yield exactly one venue: his own. |
 | 10 | **Dead embeds** — a post is deleted and the detail page shows a blank box | `embed_ok = false` hides it while keeping the recommendation row, so the influencer count stays honest. |
+| 11 | **Creator-operators inflate the count** — a creator who owns a restaurant posts about it constantly | `is_operator` on the influencer, `is_self_interest` on the recommendation, and `influencer_count` filters those out. INGESTION.md Finding 3 documents a 127K creator whose last 30 posts yield exactly one venue: his own. |
 
 ---
 
