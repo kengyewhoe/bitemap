@@ -178,48 +178,6 @@
           "handle": "@nomnomswithta",
           "quote": "Shio pan; eat hot. Repeat visitor, near home."
         }
-      },
-      {
-        "id": "don-t-tell-mama",
-        "name": "Don't Tell Mama",
-        "lat": null,
-        "lng": null,
-        "area": null,
-        "category": null,
-        "halal_status": "unknown",
-        "price_band": null,
-        "distance_km": null,
-        "heat": "medium",
-        "good_count": 0,
-        "bad_count": 0,
-        "good_pct": null,
-        "mention_count": 1,
-        "thumbnail_url": null,
-        "latest_mention": {
-          "handle": "@nomnomswithta",
-          "quote": "Parking and queue are a headache. Pet-friendly outdoor."
-        }
-      },
-      {
-        "id": "lai-foong-lala-noodle",
-        "name": "Lai Foong Lala Noodle",
-        "lat": null,
-        "lng": null,
-        "area": null,
-        "category": null,
-        "halal_status": "unknown",
-        "price_band": null,
-        "distance_km": null,
-        "heat": "low",
-        "good_count": 0,
-        "bad_count": 0,
-        "good_pct": null,
-        "mention_count": 1,
-        "thumbnail_url": null,
-        "latest_mention": {
-          "handle": "@nomnomswithta",
-          "quote": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive."
-        }
       }
     ],
     "fallback": null
@@ -440,60 +398,6 @@
       "photo_credit": null,
       "provider_place_id": null,
       "my_vote": null
-    },
-    "don-t-tell-mama": {
-      "id": "don-t-tell-mama",
-      "name": "Don't Tell Mama",
-      "lat": null,
-      "lng": null,
-      "area": null,
-      "category": null,
-      "halal_status": "unknown",
-      "price_band": null,
-      "heat": "medium",
-      "good_count": 0,
-      "bad_count": 0,
-      "good_pct": null,
-      "mention_count": 1,
-      "thumbnail_url": null,
-      "latest_mention": {
-        "handle": "@nomnomswithta",
-        "quote": "Parking and queue are a headache. Pet-friendly outdoor."
-      },
-      "address": null,
-      "name_aliases": null,
-      "hours_note": null,
-      "photo_url": null,
-      "photo_credit": null,
-      "provider_place_id": null,
-      "my_vote": null
-    },
-    "lai-foong-lala-noodle": {
-      "id": "lai-foong-lala-noodle",
-      "name": "Lai Foong Lala Noodle",
-      "lat": null,
-      "lng": null,
-      "area": null,
-      "category": null,
-      "halal_status": "unknown",
-      "price_band": null,
-      "heat": "low",
-      "good_count": 0,
-      "bad_count": 0,
-      "good_pct": null,
-      "mention_count": 1,
-      "thumbnail_url": null,
-      "latest_mention": {
-        "handle": "@nomnomswithta",
-        "quote": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive."
-      },
-      "address": null,
-      "name_aliases": null,
-      "hours_note": null,
-      "photo_url": null,
-      "photo_credit": null,
-      "provider_place_id": null,
-      "my_vote": null
     }
   },
   "place_posts": {
@@ -648,46 +552,6 @@
           "posted_at": "2026-08-26T00:00:00+08:00",
           "is_sponsored": false,
           "content_summary": "Shio pan; eat hot. Repeat visitor, near home.",
-          "creator": {
-            "id": "nomnomswithta",
-            "handle": "@nomnomswithta",
-            "display_name": "Ta",
-            "avatar_url": null
-          }
-        }
-      ]
-    },
-    "don-t-tell-mama": {
-      "items": [
-        {
-          "id": "post-Db5XwxlTvgo",
-          "platform": "instagram",
-          "post_url": "https://www.instagram.com/p/Db5XwxlTvgo/",
-          "thumbnail_url": null,
-          "media_kind": "post",
-          "posted_at": "2026-08-11T00:00:00+08:00",
-          "is_sponsored": false,
-          "content_summary": "Parking and queue are a headache. Pet-friendly outdoor.",
-          "creator": {
-            "id": "nomnomswithta",
-            "handle": "@nomnomswithta",
-            "display_name": "Ta",
-            "avatar_url": null
-          }
-        }
-      ]
-    },
-    "lai-foong-lala-noodle": {
-      "items": [
-        {
-          "id": "post-DZpRvwfT1wc",
-          "platform": "instagram",
-          "post_url": "https://www.instagram.com/p/DZpRvwfT1wc/",
-          "thumbnail_url": null,
-          "media_kind": "post",
-          "posted_at": "2026-06-16T00:00:00+08:00",
-          "is_sponsored": false,
-          "content_summary": "Creator calls it one of the best lala noodle in Malaysia. STRONG positive.",
           "creator": {
             "id": "nomnomswithta",
             "handle": "@nomnomswithta",

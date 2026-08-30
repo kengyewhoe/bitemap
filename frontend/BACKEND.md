@@ -298,7 +298,7 @@ Do not remove these files or their nav entries as dead links — they're future 
 
 Before the real API exists, develop against `seed/fixtures/nomnomswithta.json` (see `seed/fixtures/README.md`) rather than `js/mock.js`'s invented places — it's real hand-curated KL data (Two Fold Coffee, Since Then, Gepuklah By Mingchuun, and the rest of `@nomnomswithta`'s mapped places), shaped to match the endpoint responses above **field-for-field**, so swapping the fixture for a real `fetch()` later needs zero reshaping.
 
-Its top-level keys: `places_nearby` (an array shaped exactly like `/places/nearby`'s `items`), `place_detail` (a map of place id → the `/places/:id` shape), and `place_posts` (a map of place id → the `/places/:id/posts` shape). Coordinates in the fixture are area-centroid placeholders (Bangsar, Damansara Jaya, Kelana Jaya, …) — none of the source posts had a matched Google Place ID yet, so treat `lat`/`lng` as illustrative, not surveyed.
+Its top-level keys: `places_nearby` (the full `GET /places/nearby` response object, `{ items: [...], fallback: null }`), `place_detail` (a map of place id → the `/places/:id` shape), and `place_posts` (a map of place id → the `/places/:id/posts` shape). Coordinates in the fixture are area-centroid placeholders (Bangsar, Damansara Jaya, Kelana Jaya, …) — none of the source posts had a matched Google Place ID yet, so treat `lat`/`lng` as illustrative, not surveyed.
 
 ---
 

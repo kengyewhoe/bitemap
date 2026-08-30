@@ -4,7 +4,7 @@ Local, static stand-ins for the real API, shaped **field-for-field** to `fronten
 
 ## `nomnomswithta.json`
 
-One creator, `@nomnomswithta`, all 10 of her matched (`ingest_status = matched`, non-sponsored-excluded) venue posts and their 10 distinct places — the single best-yield creator in `seed/*.csv` (10/10 sampled posts were genuine venue visits, per `seed/README.md`'s per-creator yield table). One creator keeps the fixture small while still exercising every screen: home map, nearby list, place profile, and mentions.
+One creator, `@nomnomswithta`, the single best-yield creator in `seed/*.csv` (10/10 sampled posts were genuine venue visits, per `seed/README.md`'s per-creator yield table). Of her 10 matched (`ingest_status = matched`, non-sponsored-excluded) venue posts and their 10 distinct places, **8 are fixture-representable today**; the other 2 are excluded — see "Places excluded from this fixture" below. One creator keeps the fixture small while still exercising every screen: home map, nearby list, place profile, and mentions.
 
 Built by hand from `seed/creators.csv`, `seed/platform_accounts.csv`, `seed/places.csv`, and `seed/posts.csv` — filtering `posts.csv` to `creator_id = nomnomswithta` and `ingest_status = matched`.
 
@@ -19,7 +19,7 @@ Built by hand from `seed/creators.csv`, `seed/platform_accounts.csv`, `seed/plac
 }
 ```
 
-- `places_nearby` — the literal `GET /places/nearby` response body (all 10 places; a real query would radius-filter, this fixture just includes all of them since there's only one creator's worth of data to serve).
+- `places_nearby` — the literal `GET /places/nearby` response body (all 8 fixture-representable places; a real query would radius-filter, this fixture just includes all of them since there's only one creator's worth of data to serve).
 - `place_detail` — keyed by place id, each value the literal `GET /places/:id` response body.
 - `place_posts` — keyed by place id, each value the literal `GET /places/:id/posts` response body (one post per place here, since it's a single-creator fixture — a real place can have more).
 - `_meta` — not part of any real endpoint; fixture-only bookkeeping, see below.
@@ -35,7 +35,11 @@ Built by hand from `seed/creators.csv`, `seed/platform_accounts.csv`, `seed/plac
 - `good_count`/`bad_count`: `0`, `good_pct`: `null` — no `user_ratings` in the seed at all.
 - `mention_count`: `1` on every place — one creator, one post per place. (A real place can have more; don't hardcode "1" as a UI assumption.)
 
-**Two places have no `area` in `seed/places.csv`** (`don-t-tell-mama`, `lai-foong-lala-noodle` — blank in the source row, not a transcription slip). No area means no centroid to place them at, so both get `lat: null, lng: null, area: null, distance_km: null` rather than a guessed location. They still appear in `places_nearby.items`, sorted after every place that does have a distance (see Sort order below) — this is a deliberate edge case, useful for testing that the FE doesn't crash on a nearby item with no coordinates (e.g. a map pin that can't be placed, or a list card that should still render without a distance chip).
+### Places excluded from this fixture
+
+`don-t-tell-mama` and `lai-foong-lala-noodle` have no `area` in `seed/places.csv` (blank in the source row, not a transcription slip) — and therefore no centroid to place them at. That's excluded here rather than shipped with `lat: null, lng: null, area: null`, because a coordinate-less place is not a state the real API can ever return: `BACKEND_REQUIREMENTS.md`'s `places_published_has_coords` constraint means a place without `lat`/`lng` can never reach `status = 'published'`; `/places/nearby`'s SQL filters `where pc.lat is not null`; and `/places/:id` / `/places/:id/posts` return `404 PLACE_NOT_FOUND` for anything not published. Including these two — even sorted last, even nulled-out — would teach the FE dev to handle a nearby-item or place-detail shape the live API structurally cannot produce.
+
+This is a `seed/places.csv` data gap, not a fixture bug: both places need an area (or a geocoded `lat`/`lng`) added before they can be seeded as `published` and, in turn, before they can appear in any real or fixture API response. Resolve by geocoding — from the post caption/location tag if there's enough there, otherwise re-check the source Instagram post — then re-derive this fixture's coordinates the same way as the other 8.
 
 ### Coordinate placeholders — read before using elsewhere
 
@@ -60,7 +64,7 @@ Centroid table used (4 decimal places; `since-then`, `gepuklah-by-mingchuun`, an
 
 ### Sort order
 
-`places_nearby.items` is ordered `distance_km ASC, mention_count DESC`, exactly as `/places/nearby` returns it. Since every place here has `mention_count: 1`, the tie-break never fires in practice — the order is pure ascending distance. The two places with no coordinates (`distance_km: null`) sort last, in place-id order (a stable, arbitrary tie-break — Postgres's default `NULLS LAST` for `ASC` is the behavior this mimics).
+`places_nearby.items` is ordered `distance_km ASC, mention_count DESC`, exactly as `/places/nearby` returns it. Since every place here has `mention_count: 1`, the tie-break never fires in practice — the order is pure ascending distance.
 
 ### `heat`
 
@@ -68,7 +72,7 @@ Computed by the rule in `BACKEND_REQUIREMENTS.md` §3/§5.8 (`high` if ≥2 non-
 
 ### `media_kind`
 
-Derived from the post URL path: `/reel/` → `"reel"`, `/p/` → `"post"`. All 10 of `@nomnomswithta`'s matched posts in `seed/posts.csv` happen to use `/p/` URLs, so `media_kind` is `"post"` throughout this fixture — that's a fact about this creator's posting habits, not a fixture simplification; a different creator's fixture could well contain reels.
+Derived from the post URL path: `/reel/` → `"reel"`, `/p/` → `"post"`. All 10 of `@nomnomswithta`'s matched posts in `seed/posts.csv` (the 8 in this fixture included) happen to use `/p/` URLs, so `media_kind` is `"post"` throughout this fixture — that's a fact about this creator's posting habits, not a fixture simplification; a different creator's fixture could well contain reels.
 
 ### How the FE swaps this for the real API
 
