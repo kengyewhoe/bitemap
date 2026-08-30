@@ -1,6 +1,29 @@
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 body {
   -webkit-tap-highlight-color: transparent;
   min-height: 100dvh;
+  position: relative;
+}
+
+input {
+  min-width: 0;
+}
+
+.material-symbols-outlined {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  line-height: 1;
+  font-size: 22px;
+  user-select: none;
 }
 
 .hide-scrollbar::-webkit-scrollbar {

@@ -10,51 +10,48 @@
     <script src="/js/theme.js"></script>
     <link rel="stylesheet" href="/css/app.css" />
   </head>
-  <body class="bg-map-background h-screen w-screen overflow-hidden font-body-md relative">
+  <body class="bg-map-background h-screen w-full max-w-full overflow-hidden font-body-md relative">
     <div class="absolute inset-0 z-0">
       <img class="absolute inset-0 w-full h-full object-cover opacity-80" alt="" src="https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1400&q=80" />
       <div class="absolute inset-0 bg-map-background/50"></div>
     </div>
     <button type="button" id="dismiss" class="hidden absolute inset-0 z-[5] bg-transparent" aria-label="Close nearby list"></button>
-    <div class="absolute top-0 left-0 right-0 p-margin-mobile z-40 flex gap-2 items-center">
-      <div class="flex-1 bg-map-surface/90 backdrop-blur-md border border-map-outline rounded-full flex items-center p-2 min-w-0">
-        <span class="material-symbols-outlined text-map-on-surface ml-2">search</span>
-        <input id="q" class="bg-transparent border-none focus:ring-0 text-map-on-surface w-full placeholder:text-sheet-on-surface-muted mx-2" placeholder="Search Kuala Lumpur…" />
+    <div class="absolute top-0 left-0 right-0 p-4 z-40 flex gap-2 items-center max-w-full box-border">
+      <div class="flex-1 min-w-0 overflow-hidden bg-map-surface/90 backdrop-blur-md border border-map-outline rounded-full flex items-center pl-3 pr-1.5 py-1.5">
+        <span class="material-symbols-outlined text-map-on-surface text-[20px] flex-shrink-0">search</span>
+        <input id="q" class="bg-transparent border-none focus:ring-0 text-map-on-surface w-0 flex-1 min-w-0 placeholder:text-sheet-on-surface-muted mx-2 px-0" placeholder="Search Kuala Lumpur…" />
+        <button type="button" id="open-filters" class="relative flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-map-on-surface" title="Filters">
+          <span class="material-symbols-outlined text-[20px]">tune</span>
+          <span id="filter-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-primary-container"></span>
+        </button>
       </div>
-      <button type="button" id="open-filters" class="relative flex-shrink-0 w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface" title="Filters">
-        <span class="material-symbols-outlined">tune</span>
-        <span id="filter-dot" class="hidden absolute top-2 right-2 w-2 h-2 rounded-full bg-primary-container"></span>
-      </button>
-      <button type="button" id="recenter" class="flex-shrink-0 w-12 h-12 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface" title="Recenter">
-        <span class="material-symbols-outlined">my_location</span>
+      <button type="button" id="recenter" class="flex-shrink-0 w-11 h-11 rounded-full bg-map-surface border border-map-outline flex items-center justify-center text-map-on-surface" title="Recenter">
+        <span class="material-symbols-outlined text-[20px]">my_location</span>
       </button>
     </div>
-    <div id="pins" class="absolute inset-0 z-10"></div>
-    <div id="map-peek" class="hidden absolute bottom-[168px] left-margin-mobile right-margin-mobile z-30 md:left-auto md:right-margin-desktop md:w-[400px]"></div>
-    <button type="button" id="nearby-cta" class="absolute bottom-[96px] left-margin-mobile right-margin-mobile z-30 md:left-auto md:right-margin-desktop md:w-[400px] bg-primary-container text-on-primary rounded-2xl py-3.5 px-5 font-bold text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between">
+    <div id="pins" class="absolute inset-0 z-10 overflow-hidden pointer-events-none"></div>
+    <div id="map-peek" class="hidden absolute bottom-[168px] left-4 right-4 z-30 md:left-auto md:right-8 md:w-[400px]"></div>
+    <button type="button" id="nearby-cta" class="absolute bottom-[96px] left-4 right-4 z-30 md:left-auto md:right-8 md:w-[400px] bg-primary-container text-on-primary rounded-2xl py-3.5 px-5 font-bold text-[15px] shadow-[0_8px_24px_rgba(0,0,0,0.35)] flex items-center justify-between">
       <span>Nearby picks</span>
       <span id="cta-count" class="text-sm font-semibold opacity-90"></span>
     </button>
-    <div id="sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-30 h-[58vh] w-full md:w-[400px] md:right-margin-desktop md:left-auto md:bottom-margin-desktop md:h-[70vh] bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
-      <div id="sheet-handle" class="w-full h-8 flex justify-center items-center flex-shrink-0 cursor-pointer">
+    <div id="sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-30 h-[68vh] max-w-full md:w-[400px] md:right-8 md:left-auto md:bottom-8 bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+      <div id="sheet-handle" class="w-full h-7 flex justify-center items-center flex-shrink-0 cursor-pointer">
         <div class="w-12 h-1.5 bg-sheet-on-surface-muted/30 rounded-full"></div>
       </div>
-      <div class="px-sheet-padding pb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 id="sheet-title" class="font-headline-sheet text-headline-sheet">Nearby picks</h2>
-          <p id="sheet-sub" class="text-sheet-on-surface-muted text-sm">Recent mentions · within 5 km</p>
-        </div>
-        <button type="button" id="sheet-close" class="flex-shrink-0 w-9 h-9 rounded-full border border-sheet-outline text-sheet-on-surface-muted flex items-center justify-center" aria-label="Close">
-          <span class="material-symbols-outlined text-[20px]">close</span>
+      <div class="px-4 pb-2 flex items-center justify-between gap-2">
+        <div id="feed-tabs" class="flex gap-1.5 min-w-0"></div>
+        <button type="button" id="sheet-close" class="flex-shrink-0 w-8 h-8 rounded-full border border-sheet-outline text-sheet-on-surface-muted flex items-center justify-center" aria-label="Close">
+          <span class="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
-      <div id="feed-tabs" class="flex gap-2 px-sheet-padding pb-3"></div>
-      <div id="follow-sort" class="hidden gap-2 px-sheet-padding pb-3"></div>
-      <div id="peek" class="hidden px-sheet-padding pb-3"></div>
-      <div id="active-filters" class="flex gap-2 overflow-x-auto px-sheet-padding pb-3 hide-scrollbar"></div>
-      <div id="list" class="flex-1 overflow-y-auto px-sheet-padding pb-4 space-y-2 hide-scrollbar"></div>
+      <p id="sheet-sub" class="px-4 text-sheet-on-surface-muted text-sm pb-2">Recent mentions · within 5 km</p>
+      <div id="follow-sort" class="hidden gap-1.5 px-4 pb-2"></div>
+      <div id="peek" class="hidden px-4 pb-2"></div>
+      <div id="active-filters" class="hidden gap-2 overflow-x-auto px-4 pb-2 hide-scrollbar"></div>
+      <div id="list" class="flex-1 overflow-y-auto px-4 pb-4 space-y-2 hide-scrollbar"></div>
     </div>
-    <div id="filter-sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-40 h-[62vh] w-full md:w-[400px] md:right-margin-desktop md:left-auto md:bottom-margin-desktop md:h-[70vh] bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
+    <div id="filter-sheet" class="hidden absolute bottom-[80px] left-0 right-0 z-40 h-[62vh] max-w-full md:w-[400px] md:right-8 md:left-auto md:bottom-8 bg-sheet-surface rounded-t-[24px] md:rounded-[20px] border border-sheet-outline flex-col overflow-hidden shadow-[0_-4px_24px_rgba(0,0,0,0.1)]">
       <div id="filter-handle" class="w-full h-8 flex justify-center items-center flex-shrink-0 cursor-pointer">
         <div class="w-12 h-1.5 bg-sheet-on-surface-muted/30 rounded-full"></div>
       </div>
@@ -154,11 +151,16 @@
           </a>`;
       }
 
+      function setPanel(el, open) {
+        el.classList.toggle("hidden", !open);
+        el.classList.toggle("flex", open);
+      }
+
       function setSheet(open) {
         sheetOpen = open;
-        document.getElementById("sheet").classList.toggle("hidden", !open);
+        setPanel(document.getElementById("sheet"), open);
         document.getElementById("nearby-cta").classList.toggle("hidden", open || filterOpen);
-        document.getElementById("dismiss").classList.toggle("hidden", !open && !filterOpen);
+        setPanel(document.getElementById("dismiss"), open || filterOpen);
         syncPeek();
         if (open && selected) {
           document.getElementById(`row-${selected}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -168,14 +170,14 @@
 
       function setFiltersOpen(open) {
         filterOpen = open;
-        document.getElementById("filter-sheet").classList.toggle("hidden", !open);
+        setPanel(document.getElementById("filter-sheet"), open);
         document.getElementById("nearby-cta").classList.toggle("hidden", open || sheetOpen);
-        document.getElementById("dismiss").classList.toggle("hidden", !sheetOpen && !open);
+        setPanel(document.getElementById("dismiss"), sheetOpen || open);
         if (open) renderFilterBody();
       }
 
       function chipClass(on) {
-        return `flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border ${on ? "bg-primary text-white border-primary" : "bg-sheet-surface text-sheet-on-surface-muted border-sheet-outline"}`;
+        return `flex-shrink-0 px-3 py-1 rounded-full text-sm font-semibold border ${on ? "bg-primary text-white border-primary" : "bg-sheet-surface text-sheet-on-surface-muted border-sheet-outline"}`;
       }
 
       function renderFilterBody() {
@@ -246,12 +248,12 @@
           .map((p) => {
             const pos = positions[p.id] || { top: "40%", left: "40%" };
             const on = p.id === selected;
-            return `<button type="button" data-id="${p.id}" class="absolute flex flex-col items-center" style="top:${pos.top};left:${pos.left}">
+            return `<button type="button" data-id="${p.id}" class="absolute flex flex-col items-center pointer-events-auto max-w-[140px]" style="top:${pos.top};left:${pos.left}">
               <span class="relative flex items-center justify-center">
                 ${on ? '<span class="absolute w-8 h-8 rounded-full border-2 border-map-lime pulse-ring"></span>' : ""}
                 <span class="w-5 h-5 rounded-full ${pinColor(p)} map-pin-glow z-10 border-2 border-map-surface ${on ? "glow-mango" : ""}"></span>
               </span>
-              <span class="mt-1 bg-map-surface/90 text-map-on-surface px-2 py-0.5 rounded border border-map-outline font-map-pin text-map-pin ${on ? "text-map-mango font-bold" : ""}">${p.name}</span>
+              <span class="mt-1 max-w-[140px] truncate bg-map-surface/90 text-map-on-surface px-2 py-0.5 rounded border border-map-outline font-map-pin text-map-pin ${on ? "text-map-mango font-bold" : ""}">${p.name}</span>
             </button>`;
           })
           .join("");
@@ -292,7 +294,6 @@
         document.getElementById("cta-count").textContent = `${nearby.length} nearby`;
         document.getElementById("filter-dot").classList.toggle("hidden", filterCount() === 0);
         const followingOn = feed === "following";
-        document.getElementById("sheet-title").textContent = followingOn ? "Following" : "Nearby picks";
         document.getElementById("sheet-sub").textContent = followingOn
           ? followSort === "recent"
             ? "New picks from people you follow"
@@ -332,8 +333,16 @@
         if (filters.diet === "non") tags.push("Non-halal");
         if (!followingOn && filters.sort !== "rank") tags.push(sortOptions.find(([id]) => id === filters.sort)?.[1]);
         if (filters.category) tags.push(filters.category);
-        document.getElementById("active-filters").innerHTML = `<button type="button" id="edit-filters" class="${chipClass(filterCount() > 0)}">Filters${filterCount() ? ` · ${filterCount()}` : ""}</button>${tags.map((t) => `<span class="flex-shrink-0 px-3 py-1.5 rounded-full text-sm border border-sheet-outline text-sheet-on-surface-muted">${t}</span>`).join("")}`;
-        document.getElementById("edit-filters").onclick = () => setFiltersOpen(true);
+        const filterBar = document.getElementById("active-filters");
+        if (tags.length) {
+          filterBar.classList.remove("hidden");
+          filterBar.classList.add("flex");
+          filterBar.innerHTML = tags.map((t) => `<span class="flex-shrink-0 px-3 py-1 rounded-full text-sm border border-sheet-outline text-sheet-on-surface-muted">${t}</span>`).join("");
+        } else {
+          filterBar.classList.add("hidden");
+          filterBar.classList.remove("flex");
+          filterBar.innerHTML = "";
+        }
         if (selected && !nearby.some((p) => p.id === selected)) selected = null;
         if (followingOn && !following.size) {
           document.getElementById("list").innerHTML = `
