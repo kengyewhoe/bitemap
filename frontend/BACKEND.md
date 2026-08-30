@@ -187,7 +187,7 @@ GET /places/gepuklah-by-mingchuun/posts
       "platform": "instagram",
       "post_url": "https://www.instagram.com/p/DcBF0CLTQPH/",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/posts/DcBF0CLTQPH.jpg",
-      "media_kind": "reel",
+      "media_kind": "post",
       "posted_at": "2026-08-14T00:00:00+08:00",
       "is_sponsored": false,
       "content_summary": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue.",
@@ -298,7 +298,7 @@ Do not remove these files or their nav entries as dead links — they're future 
 
 Before the real API exists, develop against `seed/fixtures/nomnomswithta.json` (see `seed/fixtures/README.md`) rather than `js/mock.js`'s invented places — it's real hand-curated KL data (Two Fold Coffee, Since Then, Gepuklah By Mingchuun, and the rest of `@nomnomswithta`'s mapped places), shaped to match the endpoint responses above **field-for-field**, so swapping the fixture for a real `fetch()` later needs zero reshaping.
 
-Its top-level keys: `places_nearby` (the full `GET /places/nearby` response object, `{ items: [...], fallback: null }`), `place_detail` (a map of place id → the `/places/:id` shape), and `place_posts` (a map of place id → the `/places/:id/posts` shape). Coordinates in the fixture are area-centroid placeholders (Bangsar, Damansara Jaya, Kelana Jaya, …) — none of the source posts had a matched Google Place ID yet, so treat `lat`/`lng` as illustrative, not surveyed.
+Its top-level keys: `_meta` (placeholder-coords flag + provenance; FE code doesn't read it), `places_nearby` (the full `GET /places/nearby` response object, `{ items: [...], fallback: null }`), `place_detail` (a map of place id → the `/places/:id` shape), and `place_posts` (a map of place id → the `/places/:id/posts` shape). Coordinates in the fixture are area-centroid placeholders (Bangsar, Damansara Jaya, Kelana Jaya, …) — none of the source posts had a matched Google Place ID yet, so treat `lat`/`lng` as illustrative, not surveyed.
 
 ---
 

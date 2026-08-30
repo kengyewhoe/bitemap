@@ -170,7 +170,7 @@ create table public.creators (
 );
 ```
 
-`is_operator` flags a creator who posts about their own venue (e.g. `@mingchuun` owns Gepuklah) — their posts are marked `is_self_interest` and excluded from `mention_count`, not deleted. `is_active` lets ops hide a creator (account deleted, brand deal fell through) without losing their post history.
+`is_operator` flags a creator who posts about their own venue (e.g. `@mingchuun` owns Gepuklah) — their posts are marked `is_self_interest` and excluded from `mention_count`, not deleted. `is_active` is an ops/seeding flag, **not a visibility gate**: it marks a creator ops should stop seeding new posts from (account deleted, brand deal fell through). Deactivating a creator does not hide their identity fields or their already-seeded posts — `posts_select_renderable` (§6) never checks `is_active`, so a deactivated creator's posts keep rendering with their embedded creator info intact, which is the whole point of "without losing their post history."
 
 ### 5.4 `platform_accounts`
 
@@ -230,7 +230,7 @@ create index places_status_published_idx on public.places (status) where status 
 create index places_area_idx on public.places (area);
 ```
 
-No `good_count`, `bad_count`, `total_mentions`, or `weighted_rank` columns — all four are derived in `place_cards` (§5.7), not stored, so there is nothing to keep in sync.
+No `good_count`, `bad_count`, `total_mentions`, or `weighted_rank` columns — all four are derived in `place_cards` (§5.8), not stored, so there is nothing to keep in sync.
 
 ### 5.6 `posts`
 
@@ -405,10 +405,15 @@ create policy users_update_own on public.users
   using ((select auth.uid()) = id)
   with check ((select auth.uid()) = id);
 
--- creators: public read of active creators only.
-create policy creators_select_active on public.creators
+-- creators: public read of all creators. is_active is an ops/seeding flag, not a
+-- visibility gate (§5.3) — a deactivated creator's identity fields stay visible
+-- because their posts (via posts_select_renderable, which never checks
+-- is_active) keep rendering with embedded creator info. Internal columns
+-- (notes) are kept out of anon/authenticated's reach by column-level
+-- privileges below, not by this policy, since RLS is row-level only.
+create policy creators_select_all on public.creators
   for select to anon, authenticated
-  using (is_active = true);
+  using (true);
 
 -- platform_accounts: public read (no PII beyond a public handle).
 create policy platform_accounts_select_all on public.platform_accounts
@@ -445,6 +450,27 @@ create policy user_ratings_insert_own on public.user_ratings
 `user_ratings_select_own` is not explicitly called for in the plan header but is required for `GET /places/:id/ratings/me` and the `my_vote` field to work under the anon/authenticated key rather than falling back to `service_role` for a per-user read — noted here as the one addition beyond the brief's literal "insert own" line.
 
 `creators`/`platform_accounts`/`places`/`posts` have no insert/update/delete policy for `anon` or `authenticated` — RLS default-denies those, which is exactly "writable only via service role."
+
+**Column-level privileges on `creators` and `places`.** RLS is row-level only — `creators_select_all` and `places_select_published` above decide which *rows* `anon`/`authenticated` can see, but every column on an allowed row is visible to a plain `select *` regardless of what the policy's `using` clause says. Both tables carry a `notes` column documented as "internal seeding/ops notes, never rendered in the app" (§5.3, §5.5); nothing in the policies above keeps it out of a client's hands. Column-level `GRANT`s close that gap — they run in addition to RLS, narrowing the column set a role's own privileges cover, independent of which rows a policy admits:
+
+```sql
+revoke select on public.creators from anon, authenticated;
+grant select (
+  id, display_name, bio, avatar_url, avatar_source_url, avatar_fetched_at,
+  niche_tags, maps_list_url, content_type, is_operator, is_active,
+  created_at, updated_at
+) on public.creators to anon, authenticated;
+
+revoke select on public.places from anon, authenticated;
+grant select (
+  id, provider_place_id, name, name_aliases, lat, lng, address, area,
+  category, halal_status, price_band, hours_note, operational_status,
+  photo_url, photo_source, photo_source_url, photo_credit, photo_fetched_at,
+  photo_visible, status, created_at, updated_at
+) on public.places to anon, authenticated;
+```
+
+Both lists are every column on the table except `notes`. This also closes a second gap beyond the `place_cards`/`posts` DTOs (which already hand-pick their own output columns and were never going to leak `notes`): without the revoke/grant, a client holding an anon/authenticated Supabase key could `select notes from creators` (or `places`) directly over PostgREST and read ops notes nothing in the API surface intends to expose.
 
 ---
 
@@ -520,7 +546,7 @@ Timestamps in all JSON below are ISO 8601 (`2026-08-26T09:12:00+08:00`); `DD/MM/
    order by distance_km asc, mention_count desc
    limit 50;
    ```
-3. If fewer than 3 rows come back, re-run the same query with a radius large enough to cover the whole KL bounding box (city-wide "trending") and set `fallback: "kl_trending"`. Otherwise `fallback: null`.
+3. If fewer than 3 rows come back, re-run the same query with `radius_km = 60` (city-wide "trending") and set `fallback: "kl_trending"`. Otherwise `fallback: null`. 60 km is the KL bounding box's own diagonal — south `2.90`/north `3.30` by west `101.50`/east `101.90` spans roughly 44 km north-south and 44 km east-west at this latitude, for a corner-to-corner diagonal of ~60 km — so a 60 km radius from any point inside the box covers the whole box.
 4. `good_pct`: null if `good_count + bad_count < 5`, else `round(100 * good_count / (good_count + bad_count))`.
 5. `thumbnail_url` in the item DTO below is `place_cards.photo_url` (see §5.8/§6) — already `null` when the place's `photo_visible = false`, no extra check needed here.
 
@@ -670,7 +696,7 @@ GET /places/gepuklah-by-mingchuun/posts
       "platform": "instagram",
       "post_url": "https://www.instagram.com/p/DcBF0CLTQPH/",
       "thumbnail_url": "https://xyzco.supabase.co/storage/v1/object/public/posts/DcBF0CLTQPH.jpg",
-      "media_kind": "reel",
+      "media_kind": "post",
       "posted_at": "2026-08-14T00:00:00+08:00",
       "is_sponsored": false,
       "content_summary": "INDEPENDENT source for Gepuklah. Mixed verdict: worth trying, not worth the queue.",

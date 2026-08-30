@@ -1,6 +1,6 @@
 # Seed data
 
-Hand-curated launch inventory, collected 30/08/2026 from public Instagram post pages (logged out). Maps onto the §11 data model.
+Hand-curated launch inventory, collected 30/08/2026 from public Instagram post pages (logged out). Maps onto the schema in [`BACKEND_REQUIREMENTS.md`](../BACKEND_REQUIREMENTS.md) §5, the binding MVP schema.
 
 See [`PLAYBOOK.md`](PLAYBOOK.md) for the manual triage-and-seed process this data was collected under — the process to repeat for every new creator going forward.
 
@@ -23,6 +23,8 @@ For a static, API-shaped local dev fixture built from this data, see [`fixtures/
 - `provider_place_id`, `location`, `address` — no Places lookup has been run. Every place still needs matching before it can rank or show a distance.
 - `credibility_score`, `weighted_rank`, `sentiment_score` — derived, not seeded.
 - `category` — left blank rather than guessed.
+
+This data predates the consolidated schema's fold-in columns: `content_type`, `is_operator`, `is_active`, `maps_list_url` on creators; `halal_status`, `price_band`, `hours_note`, `name_aliases`, and photo provenance (`photo_source`, `photo_source_url`, `photo_credit`, `photo_fetched_at`) on places. Facts these columns would hold — e.g. `@mingchuun`'s operator status — live here only as prose in `seed_score_notes`. `seed/PLAYBOOK.md` governs how new seeding records them as real columns instead.
 
 **Two non-schema columns on `posts.csv`**, kept because they cost nothing and would be expensive to recover: `resolved_by` (which signal identified the place) and `location_tag_kind` (whether the tag named the venue, an area, an event, or a relative description). Drop them at import if unwanted.
 
