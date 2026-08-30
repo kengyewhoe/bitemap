@@ -2,6 +2,8 @@
 
 Hand-curated launch inventory, collected 30/08/2026 from public Instagram post pages (logged out). Maps onto the §11 data model.
 
+See [`PLAYBOOK.md`](PLAYBOOK.md) for the manual triage-and-seed process this data was collected under — the process to repeat for every new creator going forward.
+
 | File | Rows | Table |
 |---|---|---|
 | `creators.csv` | 5 | `creators` |
