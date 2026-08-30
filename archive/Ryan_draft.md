@@ -1,3 +1,5 @@
+> **Archived.** Superseded by [`../SPEC.md`](../SPEC.md) (merged 2026-08-30). Kept for history.
+
 # BiteMap PRD
 
 **Product:** BiteMap  

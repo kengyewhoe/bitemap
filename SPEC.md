@@ -1,143 +1,383 @@
-# BiteMap — Technical Specification
+# BiteMap — Product & Technical Specification
 
-> **Status:** Draft / pre-MVP
-> **Source:** `initial_thoughts.txt` (original free-form notes)
-> **One-liner:** Influencer-driven food discovery — turn viral social food content into mapped, credibility-scored dining decisions.
-
----
-
-## 1. Product Vision
-
-BiteMap centralizes the fragmented world of social media food reviews. It transforms viral content into actionable dining decisions by:
-
-1. **Mapping** influencer recommendations to physical restaurant locations.
-2. **Aggregating** posts across platforms into a single restaurant profile.
-3. **Verifying** credibility through community feedback ("Legit vs. Hype").
-
-**Problem being solved:** A user sees a food video, cannot tell if the place is genuinely good or a paid promotion, and cannot easily find it or others like it nearby.
+> **Status:** Draft for MVP build  
+> **Launch:** Kuala Lumpur metro · mobile web (PWA-first)  
+> **Sources:** [`archive/SPEC.md`](archive/SPEC.md) (original technical outline) + [`archive/Ryan_draft.md`](archive/Ryan_draft.md) (locked product decisions, 2026-08-30)  
+> **One-liner:** Right-now KL food map + community ranker for food influencers. Viral clips → real places → Legit vs Hype.
 
 ---
 
-## 2. User Experience Flows
+## 1. Product vision
 
-### 2.1 Quick-Start Flow
-| Step | Screen | Action | Outcome |
-|---|---|---|---|
-| 1 | Onboarding | User grants location access | Location permission stored |
-| 2 | Home Feed | App loads "Trending Nearby" | List of restaurants ranked by recent influencer mentions |
-| 3 | Feed → Detail | User taps a restaurant | Shows the specific influencer posts driving the trend |
+BiteMap centralizes fragmented social food reviews and turns them into **actionable “where should I eat right now” decisions** in KL, with a **community trust layer on creators**.
 
-### 2.2 Detailed Discovery Flow
-| Step | Screen | Action | Outcome |
-|---|---|---|---|
-| 1 | Restaurant Profile | User opens a restaurant | Aggregated reviews (TikTok, IG, etc.), photos extracted from posts, "Legit vs. Hype" meter |
-| 2 | Restaurant Profile | User toggles "Top Rated Influencers Only" | Feed filters to creators above a credibility threshold |
+1. **Map** influencer recommendations to physical places (Google Place ID as source of truth).
+2. **Aggregate** posts into one restaurant profile (embeds, not hosted video).
+3. **Rank influencers** via community **Legit / Hype** stamps on tips.
 
-### 2.3 Influencer Evaluation Flow
-| Step | Screen | Action | Outcome |
-|---|---|---|---|
-| 1 | Influencer Profile | User opens a creator | Full history of their recommendations |
-| 2 | Post / Restaurant | User visits the restaurant, returns to app | Rates the tip as **Legit** or **Hype** |
-| 3 | System | Vote recorded | Influencer `credibility_score` recalculated |
+**Problem:** A user sees a food video, cannot tell if the place is genuinely good or paid hype, and cannot easily find it (or similar) nearby.
+
+**Positioning:** “What’s actually good near you tonight — and which KL food accounts you can trust.”
+
+**Not:** Yelp, Google reviews, a TikTok clone, or a social network.
 
 ---
 
-## 3. Data Model
+## 2. Locked product decisions
 
-### `influencers`
+| Decision | Call |
+|---|---|
+| Session 1 job | **Right now.** Location → nearby trending → place + clips → go. Not weekend planning. |
+| Core appeal | **Influencer ranker** (community trust), not a sharing/social graph. |
+| Share unit (later) | Place + influencer + verdict. Not required for MVP. |
+| Cold start | **Seed KL inventory** and **hand-score** a starter set of creators. No empty graph. |
+| Geography | **KL city metro only.** |
+| Influencers | **Inventory and users.** They can claim a profile. **Verification is manual.** |
+| Video | **oEmbed / official embeds only.** Thumbnails + link. **Do not host full videos.** |
+| Visit proof | **Honor system** (“I went”). No geo check-in required to vote. |
+| Voting | **One vote per user per post.** Auth required. Default: **lock after submit.** |
+| Launch surface | **Mobile web**, KL-focused. Not React Native for MVP. |
+
+---
+
+## 3. Who it’s for
+
+| Role | Job |
+|---|---|
+| Primary | Someone in KL deciding dinner in the next ~20 minutes |
+| Secondary | People who follow KL food accounts and want a **trust ranking** before they queue |
+| Creators | KL food influencers who want a public trust profile they can claim |
+
+**Out of scope for MVP:** tourists as a separate persona, group planning, multi-city, restaurant admin dashboards.
+
+---
+
+## 4. Goals and non-goals
+
+### Goals (MVP)
+
+- **Trending nearby** from recent influencer mentions (default **5 km**, KL only).
+- Place page with the **clips that made it trend** (oEmbed + summary).
+- Signed-in users stamp a post **Legit** or **Hype** (honor-system visit).
+- **Credibility score** per influencer + **KL leaderboard** (trust, not followers).
+- Influencers **request a claim**; ops **approves manually**.
+
+### Non-goals (MVP)
+
+- Share cards, Stories, referral loops, following graph.
+- Scrapers as the only supply; hosting TikTok/IG files.
+- Automatic visit verification / geofence as a vote gate.
+- Dietary/price as rank drivers; paid restaurant placement; auto-verified badges.
+- Native iOS/Android apps.
+
+---
+
+## 5. Success metrics
+
+**North star:** Sessions that end in a **place view** or **Directions tap**.
+
+**Secondary:** Nearby feed shows ≥3 places; votes/week (unique user × post); leaderboard visits; claim requests / approvals.
+
+**Guardrails:** Wrong-place match rate; vote farming; **no full video downloads from our origin**.
+
+Do not optimize for “posts ingested.”
+
+---
+
+## 6. User experience
+
+### 6.1 Quick-start (session 1 — default)
+
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Onboarding | Grant location, or **Browse Kuala Lumpur** | Coarse location or KL centroid. One screen, no carousel. |
+| 2 | Map (home) | App loads **Trending Nearby** | Night map + tray; places ranked by recent mentions within ~5 km, recency-weighted |
+| 3 | Map → place | Tap a restaurant | Profile: oEmbeds that drove the trend, thumbnail URLs, Legit vs Hype meter |
+| 4 | Place | Directions (system maps) or Save (optional) | User can go now |
+
+### 6.2 Detailed discovery
+
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Restaurant profile | Open a place | Aggregated mentions, embed players, photos as **thumbnail URLs only**, Legit vs Hype meter (from post votes) |
+| 2 | Restaurant profile | “High-trust creators only” | Filter to creators above a threshold. **Hide this chip until enough scored creators exist** (recommend ≥15). |
+| 3 | Restaurant profile | “Hide sponsored” | Hides posts tagged sponsored |
+
+### 6.3 Influencer evaluation (core loop)
+
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Influencer profile | Open a creator | History of recommendations + running score. Claimed vs unclaimed is obvious. |
+| 2 | Post | User eats, returns, stamps **Legit** or **Hype** | Honor “I went.” Copy must **not** say “verified visit.” |
+| 3 | System | Vote recorded | Unique `(user_id, post_id)`. Updates `legit_count` / `hype_count` / `credibility_score`. |
+| 4 | Rank / leaderboard | Browse KL ranking | Creators ranked by **community trust**, not follower count |
+
+### 6.4 Claim flow
+
+| Step | Screen | Action | Outcome |
+|---|---|---|---|
+| 1 | Unclaimed profile | **Claim** | Form: handles + proof (bio link or screenshot) |
+| 2 | Ops queue | Manual approve / reject | `pending` → `verified` \| `rejected` |
+| 3 | Claimed profile | Creator may flag sponsored, suggest place corrections | Ops confirms corrections. Creator **cannot** delete community votes. |
+
+---
+
+## 7. Information architecture (mobile web)
+
+**Tabs**
+
+1. **Map** — default home (session 1)
+2. **Rank** (or “Creators”) — leaderboard + search — first-class; this is the brand
+3. **Saved** — optional MVP; cut if needed
+4. **Me** — votes, claim entry, city = KL
+
+Restaurant and post/clip are **pages or sheets**, not tabs.
+
+---
+
+## 8. MVP scope
+
+### In
+
+| Area | Requirement |
+|---|---|
+| Geo | KL metro bounding box / area allowlist. Nearby = **5 km**. |
+| Feed | Recent mentions; recency decay (prefer last **14–30 days**). |
+| Place page | Name, area, category, mention count, meter, posts via **oEmbed**. |
+| Post | Platform, URL, embed, summary, place, influencer, sponsored flag. |
+| Voting | Auth required. Honor “I went.” **One vote per user per post.** Default lock after submit. |
+| Credibility | `legit / (legit + hype)` + **minimum vote floor**. Hand-seed launch set. |
+| Leaderboard | KL, trust-based, show vote volume. |
+| Claim | Request + manual verify. |
+| Ingest | **Curated / manual + light collectors.** LLM extract **on ingest only**, cached. Match to **Google Place ID**. |
+| Media | Thumbnail URL + oEmbed HTML. **Zero video bytes on our CDN.** |
+
+### Out / later
+
+- Share cards, OG images, Stories.
+- Geo visit proof; vote weight by account age (design now, enforce if abused).
+- Auto claim, multi-city, native apps.
+- Following, comments, DMs.
+- Heavy scrapers as primary supply.
+
+### Launch inventory (cold start)
+
+- **~80–150 places**, **~30–50 creators**, each with ≥1 mapped post.
+- Hand-score creators so the leaderboard is not empty.
+- Thin GPS: show **KL trending**, never a blank map.
+
+---
+
+## 9. Trust, spam, sponsored
+
+**Rubric (show once in UI)**
+
+- **Legit:** Matched the clip; worth the trip/queue.
+- **Hype:** Camera bait, bait-and-switch, not worth queue/price, or nothing like the video.
+- Stamp scores the **tip/post** (and thus the creator), not a 1–5 restaurant review.
+
+**Rules**
+
+- One vote per `(user_id, post_id)`.
+- Store `account_created_at` for later down-weighting.
+- Sponsored: **manual + creator claim + user report**.
+- Reports: wrong place, closed, spam, not food, impersonation.
+
+---
+
+## 10. Data, matching, legal
+
+- Venue source of truth: **Google Place ID**. LLM **proposes**; human or high-confidence match **commits**. Never match on name alone (food courts, stalls, duplicate names).
+- Closed/moved: Places operational status; dim “might be closed.”
+- Identity: `creator_id` (person) vs `platform_account` (handle).
+- **oEmbed** for TikTok/IG. If embed fails: **thumbnail + open original**.
+- **No ripping or storing full videos.** Takedown = drop embed; keep metadata if legal.
+- Claim/remove for names/faces on rank pages.
+- Location: coarse for feed; no high-precision tracks. Guest can browse KL; **account required to vote.**
+
+---
+
+## 11. Data model
+
+**Relationships:** `creators` 1—N `platform_accounts`; `creators` 1—N `posts` N—1 `places`; `user_ratings` N—1 `posts`; unique `(user_id, post_id)` on ratings.
+
+### `users`
+
 | Field | Type | Notes |
 |---|---|---|
 | `id` | PK | |
+| `auth` | — | Provider ids as needed |
+| `display_name` | string | |
+| `created_at` | datetime | For later vote weighting |
+| `last_city` | string | `KL` |
+| `role` | enum | `user` \| `ops` |
+
+### `creators`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | Person-level identity (replaces flat `influencers`) |
 | `name` | string | Display name |
-| `platform_handles` | json | e.g. `{ "tiktok": "@x", "instagram": "@x" }` |
-| `follower_count` | int | Snapshot, refreshed on ingest |
-| `niche_tags` | string[] | e.g. `["sushi", "budget-eats"]` |
-| `credibility_score` | float | Derived from `legit_count` / `hype_count` |
-| `legit_count` | int | Aggregate of positive user ratings |
-| `hype_count` | int | Aggregate of negative user ratings |
+| `niche_tags` | string[] | e.g. `["mamak", "budget-eats"]` |
+| `credibility_score` | float | Derived; seed until vote floor |
+| `legit_count` | int | |
+| `hype_count` | int | |
+| `claim_status` | enum | `unclaimed` \| `pending` \| `verified` \| `rejected` |
+| `claimed_by_user_id` | FK → `users` | Nullable |
+| `seed_score_notes` | text | Hand-score rationale |
+
+### `platform_accounts`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `creator_id` | FK → `creators` | |
+| `platform` | enum | `tiktok` \| `instagram` \| … |
+| `handle` | string | |
+| `external_id` | string | Nullable |
+| `follower_count` | int | Optional snapshot; **not** used for leaderboard |
+
+### `places`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | Replaces `restaurants` |
+| `provider_place_id` | string | Google Place ID (or equivalent) |
+| `name` | string | |
+| `location` | geography(Point) | PostGIS |
+| `address` | string | |
+| `area` | string | e.g. Bangsar, Cheras, Jalan Alor |
+| `category` | string | Cuisine / type |
+| `operational_status` | string | From Places |
+| `total_mentions` | int | Denormalized |
+| `weighted_rank` | float | Mentions × recency × creator credibility × distance × anti-spam |
 
 ### `posts`
-| Field | Type | Notes |
-|---|---|---|
-| `id` | PK | |
-| `influencer_id` | FK → `influencers.id` | |
-| `platform` | enum | `tiktok` \| `instagram` \| … |
-| `post_url` | string | Canonical source link |
-| `content_summary` | text | LLM-generated |
-| `sentiment_score` | float | LLM-generated |
-| `restaurant_id` | FK → `restaurants.id` | Nullable until matched |
-| `timestamp` | datetime | Original post time |
 
-### `restaurants`
 | Field | Type | Notes |
 |---|---|---|
 | `id` | PK | |
-| `name` | string | |
-| `location_coord` | geography(Point) | PostGIS |
-| `address` | string | |
-| `category` | string | Cuisine / type |
-| `total_mentions` | int | Denormalized counter |
-| `weighted_rank` | float | Mentions weighted by influencer credibility + recency |
+| `creator_id` | FK → `creators` | |
+| `platform_account_id` | FK → `platform_accounts` | |
+| `platform` | enum | |
+| `post_url` | string | Canonical source |
+| `embed_html` / `oembed_cache` | text | Cached oEmbed |
+| `thumbnail_url` | string | No video files on our storage |
+| `content_summary` | text | LLM on ingest, cached |
+| `sentiment_score` | float | LLM on ingest, cached |
+| `place_id` | FK → `places` | Nullable until matched |
+| `timestamp` | datetime | Original post time |
+| `is_sponsored` | bool | Manual / claim / report |
+| `ingest_status` | string | |
 
 ### `user_ratings`
+
 | Field | Type | Notes |
 |---|---|---|
 | `id` | PK | |
-| `user_id` | FK | |
-| `influencer_id` | FK → `influencers.id` | |
-| `post_id` | FK → `posts.id` | |
+| `user_id` | FK → `users` | |
+| `creator_id` | FK → `creators` | Denormalized for leaderboard |
+| `post_id` | FK → `posts` | Unique with `user_id` |
 | `rating_type` | enum | `legit` \| `hype` |
 | `timestamp` | datetime | |
 
-**Relationships:** `influencers` 1—N `posts` N—1 `restaurants`; `user_ratings` N—1 `posts`.
+### `claim_requests`
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `creator_id` | FK | |
+| `user_id` | FK | |
+| `proof_note` | text | |
+| `status` | enum | `pending` \| `approved` \| `rejected` |
+| `reviewed_by` | FK | Nullable |
+| `reviewed_at` | datetime | Nullable |
+
+### Optional / ops
+
+- **`saves`:** `user_id`, `place_id`, list `want` \| `been`
+- **`reports`:** target, reason, status
+- **`ingest_jobs`:** url or handle, status, last_error
+- **`rank_snapshots`:** weekly leaderboard debug
+
+**Place rank:** mentions × recency × creator credibility × distance × hide-spam. Same formula on map and list.
+
+**Creator rank:** community ratio + vote floor + recency of votes; **not** followers. Use seed scores until the floor is met.
 
 ---
 
-## 4. Tech Stack
+## 12. Tech stack
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| Frontend | React Native | Cross-platform mobile from one codebase |
-| Backend | Node.js + NestJS | Structured, scalable API layer |
-| Database | PostgreSQL + PostGIS | Relational data + geospatial proximity queries |
-| Cache | Redis | Trending feeds, proximity ranking |
-| Data ingestion | Python collectors/scrapers + LLM extraction | Sentiment & entity extraction from post text |
-| Maps | Google Maps Platform / Mapbox | Rendering + Places metadata |
+| Client | **Mobile web** (React or similar), PWA-first | KL launch; light embeds; no native app in MVP |
+| API | Node.js + NestJS | Structured, scalable API |
+| Database | PostgreSQL + PostGIS | Relational + KL proximity |
+| Cache | Redis | Trending by geohash, oEmbed cache, leaderboard |
+| Ingest | **Manual/curated first**; Python collectors later + LLM on ingest | Entity/sentiment cached; not per page view |
+| Maps | Google Maps Platform / Mapbox | Map + Places; cache geocode; KL only |
+| Media | oEmbed + thumbnails | **No object storage for video** |
+| Auth | Email or social (pick one cheap path) | Required for vote and claim |
 
 ---
 
-## 5. MVP Scope
+## 13. UI principles
 
-**In scope**
-1. **Nearby Influencer Feed** — aggregated list of recent mentions within a 5-mile radius.
-2. **Basic Credibility System** — Legit/Hype voting on influencer posts.
-3. **Restaurant Detail Pages** — social posts linked to a Google Maps location.
-4. **Influencer Leaderboard** — creators ranked by community trust.
-
-**Explicitly out of scope for MVP**
-- Multi-city / multi-region expansion beyond the launch area.
-- Automated sponsorship detection beyond a manual/declared "Sponsored" tag.
-- Social features (following, comments, user-generated posts).
+- Session 1 = **map**: night map, heat pins, selected pin → place + embeds.
+- **Ranker is visible** (trust number + leaderboard, not buried).
+- **Stamps** (Legit / Hype), not stars.
+- Light client: poster/thumbnail + official embed; no third-party files on our origin.
+- KL copy: areas, **RM**, **km**, English + light Manglish OK.
+- Sharing is **not** a design requirement. Later preview = place + creator + verdict.
+- Empty/thin → **KL trending**, never a dead map.
+- Claimed vs unclaimed obvious on creator pages.
 
 ---
 
-## 6. Risks & Mitigations
+## 14. Risks and mitigations
 
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
-| 1 | **Data sourcing** — scraping limits and API costs for TikTok/Instagram | Blocks core ingestion | Focus on a curated set of high-value public profiles; use web crawlers rather than paid APIs at MVP scale |
-| 2 | **Matching accuracy** — resolving the wrong "Joe's Pizza" | Wrong data shown to users; trust loss | Use an LLM to cross-reference post text against Google Places API metadata before committing a match |
-| 3 | **Incentivized hype** — paid promotions skew the data | Credibility scores become meaningless | Mandatory "Sponsored" tagging plus community-driven credibility decay over time |
+| 1 | Platform ToS / API cost / scraping limits | Blocks ingest or legal exposure | oEmbed + public URLs; **curated profiles first**; no video hosting; scrapers are not the only supply |
+| 2 | Matching accuracy (wrong place) | Trust loss | Place ID; LLM proposes; human review on low confidence |
+| 3 | Paid / incentivized hype | Scores meaningless | Sponsored flag (manual + claim + report); community score |
+| 4 | Empty leaderboard | Ranker feels fake | Seed + hand-score; vote floor |
+| 5 | Vote farming | Distorted ranks | 1 vote / user / post; later account age + rate limits |
+| 6 | Honor-system lies | Noisy scores | Accept on MVP; do not claim “verified visit” |
+| 7 | Embed breakage | Dead clips | Thumbnail + outbound link |
+| 8 | Claim impersonation | Fake verified creators | Manual verify only |
 
 ---
 
-## 7. Open Questions
+## 15. Rollout
 
-- [ ] How is `credibility_score` computed exactly (formula, decay half-life, minimum vote threshold)?
-- [ ] How is `weighted_rank` computed (mention count × credibility × recency weighting)?
-- [ ] What defines the "Legit vs. Hype" meter on a restaurant — post-level or aggregate influencer scores?
-- [ ] What is the credibility threshold for "Top Rated Influencers Only"?
-- [ ] Auth model: anonymous voting, or accounts required? (`user_ratings.user_id` implies accounts.)
-- [ ] Ingestion cadence: real-time, hourly, or daily batch?
-- [ ] Launch geography / initial city?
-- [ ] Legal posture on scraping and re-hosting extracted post photos.
+1. Seed KL places + posts + hand-scores.
+2. Ship Map + place + embed + auth + vote + creator pages + leaderboard + claim form.
+3. Ops queue for claims and mismatch reports.
+4. Only then deepen ingest automation.
+
+**Launch line:** KL metro, mobile web, right-now map + influencer ranker.
+
+---
+
+## 16. Open items
+
+**Answered (were open in the original SPEC)**
+
+- [x] Launch geography: **KL metro**.
+- [x] Auth: **accounts required to vote**; guests can browse.
+- [x] Legal on re-hosting photos/video: **do not host**; oEmbed + thumbnail URLs only.
+- [x] Restaurant meter: **aggregate of post-level Legit/Hype votes**.
+- [x] Credibility (v1): `legit / (legit + hype)` + **minimum vote floor**; seed until then. Decay half-life still open.
+- [x] “Top rated” filter: hide until **≥15** scored creators; exact numeric threshold still TBD.
+
+**Still open**
+
+- [ ] Lock vs allow vote change after submit (default: lock).
+- [ ] Exact KL metro boundary vs named-area allowlist.
+- [ ] Places provider (Google vs Mapbox) and budget cap.
+- [ ] Auth provider.
+- [ ] Whether **Saved** ships in v1.
+- [ ] Exact `weighted_rank` coefficients and recency half-life.
+- [ ] Credibility decay half-life after v1 formula.
+- [ ] Ingestion cadence once collectors exist (daily batch is enough for curated MVP).
