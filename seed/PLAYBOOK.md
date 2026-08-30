@@ -24,7 +24,7 @@ whether step 2 happens at all.
 |---|---|---|
 | `venue_reviewer` | The only seedable type. Proceed to §2. | — |
 | `venue_reviewer` + `is_operator = true` | Keep the creator row. Never create a `places` row from their own-venue posts — mark those posts `is_self_interest = true` instead, which excludes them from `mention_count` without deleting them. | `@mingchuun`, 127K followers: 0 of 6 sampled posts were third-party — all six were his own restaurant, Gepuklah. |
-| `venue_reviewer`, sponsored-heavy | Still seedable. Skip sponsored posts (`excluded:sponsored`); expect low yield and say so in `seed_score_notes`. | `@tomato_ate_it`: 4 of 11 sampled posts were genuine venue visits; 7 were brand deals or personal. Format drifted toward sponsored over time. |
+| `venue_reviewer`, sponsored-heavy | Still seedable. Skip sponsored posts (`ingest_status = 'excluded'`, `excluded_reason = 'sponsored'`); expect low yield and say so in `creators.notes`. | `@tomato_ate_it`: 4 of 11 sampled posts were genuine venue visits; 7 were brand deals or personal. Format drifted toward sponsored over time. |
 | `recipe` / `travel` / `media_brand` / `photographer` | Record the `creators` row (for completeness and so it's never re-triaged), set `is_active = false`, seed zero places. | 5 of 11 top-ranked Malaysian food IG accounts review no venues at all — one of them with 4.4M followers (SPEC_V1 §8). Follower count is not a proxy for seedability. |
 
 Set `is_operator` on sight if the bio names a restaurant they run, or a post reads like day-to-day
@@ -34,10 +34,10 @@ flagging it.
 ## 2. Per-account workflow (for anything triaged `venue_reviewer`)
 
 1. **Check link-in-bio for a public Google Maps list first.** Roughly 1 in 4 accounts publish one —
-   names, addresses and coordinates already resolved by the creator, for free (SPEC_V1 §8). There is
-   no `maps_list_url` column in the current schema (it didn't make the MVP fold-in list), so this
-   isn't something you store — it's a shortcut you work through immediately: each list entry still
-   goes through place-lookup-first (step 3) exactly like a post-derived one.
+   names, addresses and coordinates already resolved by the creator, for free (SPEC_V1 §8). Record
+   the link in `creators.maps_list_url` at intake, then work through it immediately: each list entry
+   still goes through place-lookup-first (step 3) exactly like a post-derived one — it's a seeding
+   shortcut, not something the UI reads.
 2. **Sample recent posts logged out.** A logged-out fetch exposes roughly the 12 most recent. About
    30% of fetches return empty shells — retry once, then skip and move on; don't burn more than one
    retry per post. Deeper history needs an authenticated session, which is out of scope (§4).
@@ -45,10 +45,14 @@ flagging it.
    `name_aliases`, and area for a match. This is the entire point of the model, not a nicety:
    venue-first seeding quietly creates duplicate rows for the same stall and throws away the
    corroboration signal that a second independent creator gives a place.
-   - **Found** → add a `posts` row with `place_id` set. That place's `mention_count` just went up
-     honestly.
+   - **Found** → add a `posts` row with `place_id` set. Also set `ingest_status = 'matched'` (the
+     default `'pending'` doesn't count toward `mention_count` or render on `/places/:id/posts` — a
+     post seeded as `pending` and left there is invisible) and `media_kind` (not-null: `'reel'` for a
+     `/reel/` URL, `'post'` for a `/p/` URL — read it off the post URL, it isn't inferred). That
+     place's `mention_count` just went up honestly.
    - **Not found** → create the `places` row first (name, area, `halal_status`, `price_band`,
-     `hours_note` if you have real signal — see step 5 on never guessing these), then the `posts` row.
+     `hours_note` if you have real signal — see step 5 on never guessing these), then the `posts` row
+     with the same `ingest_status`/`media_kind` pair above.
 4. **Resolve the place, in this order** (rates observed across the 27 genuine venue posts in the
    sample):
    | Signal | Observed rate | Note |
@@ -60,11 +64,13 @@ flagging it.
    A location tag can also be a relative description ("Same lane as Roti Jane, Seksyen 7") rather
    than a venue name — treat that as a hard case, not a resolved one; confirm the actual venue
    before creating a row.
-5. **Every non-venue post still gets a row** with `ingest_status = excluded:<reason>` and
-   `place_id = null`, so the exclusion is auditable rather than invisible. Reasons seen in the
+5. **Every non-venue post still gets a row** with `ingest_status = 'excluded'`, `place_id = null`,
+   and the reason in `excluded_reason` (a separate text column — `ingest_status` itself has no
+   per-reason enum values), so the exclusion is auditable rather than invisible. Reasons seen in the
    sample, roughly in order of frequency: `sponsored` (7), `self_interest` (6), `personal` (2),
    `out_of_scope` (2, e.g. a Shanghai or Sabah trip), `not_a_restaurant` (1, e.g. a farmstay). A post
-   can carry two reasons (`excluded:out_of_scope+sponsored`) — record both.
+   can have two reasons at once (e.g. an out-of-scope trip post that's also a sponsored plug) —
+   write `excluded_reason = 'out_of_scope+sponsored'`, record both.
 6. **Write `content_summary` as a one-line pull-quote** drawn from the caption — this is what
    `place_cards.latest_mention_quote` renders on the card. Keep the creator's own colour ("pricey
    but yumz", "would return to work/chill") rather than flattening it into a generic line.
@@ -98,7 +104,7 @@ flagging it.
 - Store public post URLs and handles only. No scraped personal data (PDPA) — if a caption exposes a
   third-party phone number or similar, that detail is left out of `content_summary` entirely.
 - KL metro scope. Filter out anything clearly outside coverage (the sample includes Bangi and Shah
-  Alam) before publishing, or note it in `seed_note` if you're keeping it in `draft` for a future
+  Alam) before publishing, or note it in `places.notes` if you're keeping it in `draft` for a future
   wider launch.
 - **Targets:** 80–150 published `places`, across roughly 30–50 creators. Track yield per creator —
   it varies enormously and that variance is the normal case, not a signal something went wrong:
