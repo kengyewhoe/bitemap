@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   Anton,
   Plus_Jakarta_Sans,
@@ -40,7 +41,25 @@ export const metadata: Metadata = {
   description: "BiteMap",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// The CSP nonce set in middleware.ts only matches script tags rendered
+// per-request — a statically prerendered page bakes its HTML (and any
+// <script> tags) at build time, before a nonce exists, so React never
+// hydrates under the nonce'd CSP. Force every route to render dynamically
+// so a fresh nonce is always threaded through. See:
+// https://nextjs.org/docs/app/guides/content-security-policy#dynamic-rendering-requirement
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // No inline/third-party <Script> currently needs the nonce prop directly
+  // (ServiceWorkerRegister is a client component with useEffect — its
+  // bundled JS is covered by 'strict-dynamic', not an inline script tag).
+  // Reading headers() here still matters: it's what makes Next.js parse the
+  // per-request CSP header (set in middleware.ts) and auto-apply its nonce
+  // to the framework's own script tags. Without it Next has no signal that
+  // a nonce exists for this render, and every script tag ships nonce-less
+  // under a 'strict-dynamic' CSP — silently breaking hydration.
+  await headers();
+
   return (
     <html
       lang="en"
