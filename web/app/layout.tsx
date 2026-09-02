@@ -50,21 +50,30 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // No inline/third-party <Script> currently needs the nonce prop directly
-  // (ServiceWorkerRegister is a client component with useEffect — its
-  // bundled JS is covered by 'strict-dynamic', not an inline script tag).
-  // Reading headers() here still matters: it's what makes Next.js parse the
-  // per-request CSP header (set in middleware.ts) and auto-apply its nonce
-  // to the framework's own script tags. Without it Next has no signal that
-  // a nonce exists for this render, and every script tag ships nonce-less
-  // under a 'strict-dynamic' CSP — silently breaking hydration.
-  await headers();
+  // Reading headers() is what makes Next.js parse the per-request CSP
+  // header (set in middleware.ts) and auto-apply its nonce to the
+  // framework's own script tags. It also lets us read the nonce ourselves,
+  // below, for the anti-FOUC theme-init script.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html
       lang="en"
       className={`${anton.variable} ${plusJakartaSans.variable} ${beVietnamPro.variable} ${dmSans.variable} h-full antialiased`}
     >
+      <head>
+        {/* Anti-FOUC: set data-theme before first paint from the saved
+            preference, so a saved "dark" choice never flashes light first.
+            "system"/absent leaves data-theme unset so the
+            prefers-color-scheme media query in globals.css decides. Must
+            carry the CSP nonce (middleware.ts) or it's blocked. */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("bitemap.theme");if(t==="light"||t==="dark"){document.documentElement.dataset.theme=t;}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-surface text-on-surface">
         {children}
         <ServiceWorkerRegister />

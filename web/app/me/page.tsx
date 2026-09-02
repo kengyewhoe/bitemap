@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type UserRow = {
   display_name: string | null;
@@ -115,6 +116,10 @@ export default async function MePage() {
           Signed in with Google. Linked accounts are backend-owned.
         </p>
       </Card>
+
+      <div className="mb-6">
+        <ThemeToggle />
+      </div>
 
       <form action={signOut}>
         <button
