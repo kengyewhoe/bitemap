@@ -61,7 +61,11 @@ export async function GET(
     .maybeSingle();
 
   if (placeErr) {
-    return NextResponse.json(errorBody("DB_ERROR", placeErr.message), { status: 400 });
+    console.error("GET /api/places/[id]/posts: place_cards query failed", placeErr);
+    return NextResponse.json(
+      errorBody("DB_ERROR", "Something went wrong."),
+      { status: 500 }
+    );
   }
   if (!place) {
     return NextResponse.json(PLACE_NOT_FOUND, { status: 404 });
@@ -80,7 +84,11 @@ export async function GET(
     .order("posted_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json(errorBody("DB_ERROR", error.message), { status: 400 });
+    console.error("GET /api/places/[id]/posts: posts query failed", error);
+    return NextResponse.json(
+      errorBody("DB_ERROR", "Something went wrong."),
+      { status: 500 }
+    );
   }
 
   const items = ((data ?? []) as unknown as PostRow[]).map(postDto);

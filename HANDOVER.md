@@ -5,83 +5,93 @@ _Last updated 2026-09-02. Owner: standing architect. Edit this, don't fork it. S
 ## Project
 
 "Right-now KL food map" PWA. Influencer clips -> real places; Good/Bad votes; mobile web; KL only; 1000 DAU target.
-**Phase: Wave 0 (foundation) of the Next.js rewrite. Backend live. `frontend/` demos are throwaway.**
+**Phase: Wave 1 (core 5 screens -> shippable PWA). Wave 0 complete on `feat/production-pwa` @ `363f2e7`.**
 
 ## Locked decisions (all DECIDED)
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js App Router + TypeScript, Tailwind (built, tokens from `design.md`), self-hosted fonts (Plus Jakarta Sans, Be Vietnam Pro, Anton for map only) |
+| Framework | Next.js App Router + TypeScript, Tailwind (built, tokens from `design.md`), self-hosted fonts |
 | Map | MapLibre GL JS, nocturnal custom style, MapTiler free tier tiles (Protomaps later) |
-| Data | **Thin hybrid.** 3 edge-cached read Route Handlers (`/api/nearby`, `/api/places/[id]`, `/api/places/[id]/posts`) via anon client. Auth, writes (ratings, saves, follows) and `/me` go direct from the app via `@supabase/ssr` under RLS. Never `service_role`. |
+| Data | **Thin hybrid.** 3 edge-cached anon read Route Handlers (`/api/nearby`, `/api/places/[id]`, `/api/places/[id]/posts`). Auth, writes (ratings/saves/follows) and `/me` direct via `@supabase/ssr` under RLS. `my_vote` never in cached responses. Never `service_role`. |
 | Nearby | Plain-SQL haversine RPC `nearby_places(lat, lng, radius_km)`. No PostGIS. |
-| Schema adds | `saved_places(user_id, place_id)` + `follows(user_id, creator_id)`, RLS owner-only. All 11 screens get real data. |
-| Runtime deps | Exactly 6: `next, react, react-dom, @supabase/supabase-js, @supabase/ssr, maplibre-gl`. No UI kit, state lib, query lib, Zod, PWA plugin. |
-| Sequence | Wave 0 foundation -> Wave 1 core 5 (login, location, home/map, place [absorbs rate], me) + manifest/SW = shippable PWA -> Wave 2 remaining (follow, saved, influencers, influencer) |
+| Schema | Core 6 tables + `place_cards` view + `saved_places`, `follows` (owner-only RLS). |
+| Runtime deps | Max 6: `next, react, react-dom, @supabase/supabase-js, @supabase/ssr, maplibre-gl` (5 now; maplibre lands in W1-1). Icons = inline SVG in `components/icons.tsx`, extend it, never add an icon lib. |
+| Sequence | Wave 0 foundation (done) -> Wave 1 core 5 (login, location, home/map, place [absorbs rate], me) + follow onboarding = shippable PWA -> Wave 2 (saved, influencers, influencer) |
 | Backend | Supabase. dev `ntujoeyymyeawjngyjld` (MCP, read-only) / prod `qqricrkfbdehzqxvzuhp` (CLI only, never seeded) |
 | Hosting | Vercel (Preview -> dev, Production -> prod) |
-| Auth | Google OAuth only, cookie session via `@supabase/ssr`. `session.js` localStorage mirror is NOT ported. |
+| Auth | Google OAuth only, cookie session via `@supabase/ssr`. No localStorage session. |
 
-MVP scope of record: `SPEC.md` section 8 "MVP cut". Data contract: `BACKEND_REQUIREMENTS.md` section 8. Design: `design.md`.
+Scope of record: `SPEC.md` section 8 "MVP cut". Contract: `BACKEND_REQUIREMENTS.md` section 8. Design: `design.md`.
 
 ## Where we are
 
-**Done**
-- [x] Schema live on dev + prod: `users, creators, platform_accounts, places, posts, user_ratings`, `place_cards` view (security_invoker), RLS, `handle_new_user` trigger. 5 migrations in `supabase/migrations/`.
-- [x] Seed on dev (27 places, 47 posts, 5 creators). Advisors clean.
-- [x] `frontend/js/api.js` data layer proven against RLS (nearby/place/posts/rating/me/auth). Port its reshapers, not its session code.
-- [x] Vercel deploy + security headers + env split.
+**Wave 0 COMPLETE** — `feat/production-pwa` @ `363f2e7`. Verified by coordinator: `npm run build` clean (routes `/`, `/api/nearby`, `/api/places/[id]`, `/api/places/[id]/posts`, `/auth/callback`, `/login`, `/manifest.webmanifest`, `/offline`, `/dev/components`, middleware), 18/18 unit tests, `tsc --noEmit` clean, zero localStorage, 5 runtime deps.
+- [x] `web/` scaffold, Tailwind tokens, self-hosted fonts, `vercel.json` -> `web/`
+- [x] `@supabase/ssr` auth: login, callback code-exchange, middleware guards `/me /saved /follow`, sign-out, no OAuth race
+- [x] 3 anon edge-cached read handlers (`my_vote` kept out)
+- [x] Migrations applied to dev: `nearby_places` RPC, `saved_places`, `follows`
+- [x] PWA manifest, hand-rolled SW (network-first `/api`, cache-first capped tiles), `/offline`, placeholder icons
+- [x] Components `Nav BottomSheet Button Card Pin GoodBad icons` + `/dev/components`; tightened CSP
+- [ ] **Security review #1: in progress** (findings to be folded in here)
 
-**In flight: Wave 0** (task list below). Repo target: `web/` next to `frontend/`; `frontend/` deleted when Wave 1 reaches parity.
+**Earlier done:** schema + RLS + `place_cards` on dev and prod; dev seed (5 creators, 27 places, 47 posts); Vercel headers/env split. `frontend/` demos are throwaway, delete after Wave 1 parity.
 
-**Carried-over ops items (do not lose)**
-- [ ] Delete `SUPABASE_DB_PASSWORD` from `~/.zshenv` (prod password in plaintext on disk).
-- [ ] Restart Claude Code so `.mcp.json --read-only` takes effect.
-- [ ] Prod deploy is stale (predates OAuth wiring) and `login.html` races the redirect. Resolved by Wave 1 shipping; do not patch the demos. After Wave 1: redeploy prod from latest `main`, re-test Google sign-in in a real browser (expect Google screen -> callback -> cookie session).
+## Open items (nothing here may be lost)
 
-## Wave 0 — foundation tasks (delegate one per builder)
+| Pri | Item |
+|---|---|
+| **BLOCKER** | **Seed is invisible.** All 27 dev places are `status='draft'` with no lat/lng, so `nearby_places` returns `[]` and the map is empty. Fix = W1-0 below, before the map screen means anything. |
+| High | Migrations `nearby_places`/`saved_places`/`follows` applied to dev only. Push to prod before Wave 1 prod deploy. |
+| High | Redeploy prod from latest `main` after Wave 1 merge; re-test Google login in a real browser (Google screen -> callback -> `sb-*` cookies). Old prod build is stale and the demo `login.html` races the redirect; do not patch demos. |
+| High | Delete `SUPABASE_DB_PASSWORD` from `~/.zshenv` (prod password in plaintext). |
+| Med | CSP `script-src`/`style-src` use `'unsafe-inline'`; security review #1 to assess a nonce path. |
+| Med | Icons: Wave 1 needs search, tune, my_location, directions, external-link, etc. Extend `components/icons.tsx` inline SVG. No icon library. |
+| Low | Next 16 deprecation: `middleware.ts` -> `proxy.ts` (warning only). Do it in one commit when Next stabilizes the API. |
+| Low | Unindexed FKs `follows.creator_id`, `saved_places.place_id`: one cheap index migration. |
+| Low | Restart Claude Code so `.mcp.json --read-only` takes effect (if not already). |
+| Low | Placeholder PWA icons need the real bite-pin artwork before public launch. |
 
-Each task: deliverable + done-check. All in `web/` unless noted. Builders read `design.md` and `BACKEND_REQUIREMENTS.md` section 8 first.
+## Wave 1 — tasks (deliverable + done-check)
+
+Builders read `design.md` sections 4-5 and `BACKEND_REQUIREMENTS.md` section 8 first. All in `web/` unless noted. Shared-file rule: only the named owner edits `components/icons.tsx`, `components/Nav.tsx`, `middleware.ts`, `lib/types.ts`; others request additions via the coordinator.
 
 | # | Task | Deliverable | Done-check |
 |---|---|---|---|
-| W0-1 | Scaffold + tokens + fonts | `web/` Next.js App Router TS, Tailwind config with `design.md` tokens (map + touchpoint palettes, radii, shadows), fonts self-hosted via `next/font/local` in `web/fonts/`, `app/layout.tsx` with viewport/theme-color meta, `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_MAPTILER_KEY`), root `vercel.json` repointed to `web/`. `package.json` has exactly the 6 runtime deps. | `npm run build` clean; `/` renders a token swatch page; `npm ls --prod --depth=0` shows 6 deps. |
-| W0-2 | Migrations: `nearby_places` RPC | `supabase/migrations/<ts>_nearby_places.sql`: `security invoker` SQL function over `place_cards` returning card columns + `distance_km` (haversine, rounded 1dp), ordered by distance, `limit 200`; grant execute to `anon, authenticated`. | Applied on dev via CLI; `select * from nearby_places(3.139,101.687,5)` returns rows with `distance_km`; advisors clean. |
-| W0-3 | Migrations: `saved_places` + `follows` | `<ts>_saved_places_follows.sql`: both tables, PK `(user_id, x_id)`, FK cascade, `created_at`, RLS enabled, policies select/insert/delete `auth.uid() = user_id` only, grants to `authenticated`. | Applied on dev; as anon `select` returns 0 rows / insert fails; advisors clean. |
-| W0-4 | Supabase clients + auth | `lib/supabase/{browser,server,middleware}.ts` per `@supabase/ssr` docs; `middleware.ts` refreshes session and redirects unauthenticated `/me`, `/saved`, `/follow` to `/login`; `app/auth/callback/route.ts` exchanges code, redirects to `/location`; `app/login/page.tsx` with Google button (`signInWithOAuth`, redirectTo = callback, NO manual navigation after); sign-out server action. No localStorage session anywhere. | Manual: login -> Google -> back with `sb-*` cookies; `/me` guarded; sign-out clears. `grep -r localStorage web/` finds nothing auth-related. |
-| W0-5 | Types + reshapers | `lib/types.ts` (DTOs from contract section 8: NearbyItem, PlaceDetail, Post, Me, ApiError), `lib/reshape.ts` porting `nearbyDto/detailDto/latestMention/withAt/computeGoodPct` from `frontend/js/api.js`, `lib/format.ts` porting display helpers (`priceBandLabel`, `halalBadge`, `goodPctLabel`, `formatKm`, `formatDateDMY`). Drop client haversine (RPC supplies distance). | Unit tests (`node --test` or vitest, dev dep only) cover good_pct null <5, `@` handling, null latest_mention. `tsc --noEmit` clean. |
-| W0-6 | 3 read Route Handlers | `app/api/nearby/route.ts` (calls `nearby_places` RPC; KL fallback when no lat/lng; kl_trending fallback when empty), `app/api/places/[id]/route.ts` (404 `PLACE_NOT_FOUND`), `app/api/places/[id]/posts/route.ts`. Anon client, `export const runtime='edge'`, `Cache-Control: s-maxage=60, stale-while-revalidate=300`. Error body `{code,message}` per contract. `my_vote` is NOT here (client fetches own rating direct). | `curl` each against dev returns contract-shaped JSON; 404 shape correct; response has cache header. |
-| W0-7 | PWA manifest + SW | `app/manifest.ts`, icons (192/512 + maskable) from bite-pin logo, `public/sw.js` (~30 lines: precache shell, network-first for `/api/*`, cache-first for MapTiler tiles capped at ~200 entries), registration in layout client component. Vercel headers file carries CSP updated for MapTiler + Supabase. | Lighthouse PWA installable on preview; offline reload shows app shell. |
-| W0-8 | Shared components | `components/{Nav,BottomSheet,Button,Card,Pin,GoodBad}.tsx`. BottomSheet: peek/expand, drag via pointer events, no lib. GoodBad: segmented control, locked state, per `design.md` section 5. Pin: heat -> mango/chili/lime. Nav: bottom tab bar (Map, Saved, Creators, Me). | `/dev/components` demo route renders all states; matches `design.md` do/don't; no new deps. |
+| W1-0 | **Seed publish + geocode** (unblocks everything) | New `supabase/seed.sql` revision: each of the 27 places gets real `lat`/`lng` (hand-geocode from name+area; KL bbox 2.95-3.30 / 101.55-101.85), `status='published'`, `area` filled. Keep it idempotent (`on conflict do update`). Re-run on dev only. Add `supabase/ENVIRONMENTS.md` note: prod gets seed via table editor, never `seed.sql`. | `select count(*) from nearby_places(3.139,101.687,5)` > 0 on dev; `curl /api/nearby` returns items with `distance_km`; no place published without lat/lng (check constraint already enforces). |
+| W1-1 | **Home map `/`** (adds `maplibre-gl`, the 6th and last dep) | `components/Map.tsx` (client, dynamic import, `ssr:false`), nocturnal style JSON in `lib/mapStyle.ts` on MapTiler vector tiles via `NEXT_PUBLIC_MAPTILER_KEY`, bite-pin markers from `Pin` sized/coloured by heat, recenter + "live" pulse per `design.md` section 2, map centre from `?lat&lng` search params else KL. `app/page.tsx` fetches `/api/nearby` server-side, renders map + `BottomSheet` peek list (name, area, km, score short); tapping a pin opens peek for that place; peek tap -> `/place/[id]`. Owner of `icons.tsx` additions (my_location, search, tune). CSP: add MapTiler `connect-src`/`img-src`/`worker-src blob:`. | Lighthouse mobile perf >= 80; pins render for W1-0 data; `npm ls --prod --depth=0` = 6 deps; no map code runs on server (build has no `window` errors). |
+| W1-2 | **Place page `/place/[id]`** | `app/place/[id]/page.tsx` (server: `/api/places/[id]` + `/api/places/[id]/posts`, 404 -> `notFound()`); hero photo w/ credit, name/area/category/halal badge/price band/hours, mention count + `goodPctLabel`, Directions link (Google Maps URL from lat/lng), posts list with **tap-to-load** IG embed (`components/Embed.tsx`, iframe only on tap, CSP `frame-src` for instagram.com/tiktok.com). `components/VotePanel.tsx` (client): on mount if signed in, direct `user_ratings` select for `my_vote`; `GoodBad` locked if voted; vote = direct insert, `23505` -> locked state + toast, unauthenticated -> `/login?next=/place/[id]`; after vote `router.refresh()`. Save button (direct `saved_places` upsert/delete, owner RLS). | Vote round-trip on dev: second vote shows locked; signed-out vote redirects to login and returns; `curl` place 404 shape unchanged; no `my_vote` in any `/api` response. |
+| W1-3 | **Onboarding `/location` + `/follow`** | `app/location/page.tsx`: "Use my location" (`navigator.geolocation`, then `router.push('/?lat=&lng=')`) vs "Browse KL" (`/`); dimmed map still under clean card per `design.md` section 4 (static dark bg is fine, no maplibre here). `app/follow/page.tsx`: creators list (direct `creators` select where `is_active`), follow toggle = direct `follows` insert/delete, "Skip" -> `/`. `/auth/callback` `next` param support: login -> callback -> `/location` first time (no `users.last_city` set) else `/`. Owner of `middleware.ts` edits (add `/place/*` vote redirect is NOT middleware; keep guard list `/me /saved /follow`). | Fresh Google login lands on `/location`; geolocation grant recentres map; follow toggles persist across reload (RLS: other user sees none). |
+| W1-4 | **Me `/me`** | `app/me/page.tsx` (server, guarded): avatar/name/email from `auth.getUser()`, `users` row (`last_city`, `created_at` as DD/MM/YYYY), counts of my ratings / saves / follows (three direct selects, `count: 'exact', head: true`), sign-out button (existing server action), links to `/saved` and `/follow`. `Nav` active state for Me. | Signed-out `/me` -> `/login`; counts match dev DB for the test user; sign-out lands on `/login` with cookies cleared. |
+| W1-5 | **Ship gate** (coordinator, after W1-1..4 merge) | Push 3 migrations to prod; set `NEXT_PUBLIC_MAPTILER_KEY` on Vercel (both envs) + MapTiler key domain restriction; merge to `main`; delete `frontend/` and `/dev/components` route stays; redeploy; real-browser Google login on prod; Lighthouse PWA installable. Update this doc. | Prod URL: login works, map shows pins (prod places seeded via table editor), vote locks, offline shell loads. |
 
-Order: W0-1 first (everything depends on it). W0-2/3/5/7 parallel after. W0-4 and W0-6 after W0-5. W0-8 after W0-1, parallel with the rest.
+**Parallelism.** W1-0 first (small, ~1 hour). Then W1-1, W1-2, W1-3, W1-4 in parallel — they touch disjoint routes. Shared-file owners: `icons.tsx` -> W1-1; `middleware.ts`, `auth/callback` -> W1-3; `Nav.tsx` -> W1-4; `lib/types.ts` -> nobody (request via coordinator). CSP (`next.config`/`vercel.json` headers) is touched by W1-1 (MapTiler) and W1-2 (frame-src): W1-1 owns it, W1-2 hands its two directives to the coordinator to merge.
 
-## Wave 1 / 2 (after Wave 0 ratified)
+## Wave 2 (after Wave 1 ships)
 
-Wave 1: `/login`, `/location`, `/` (map + sheet), `/place/[id]` (posts embeds tap-to-load, Good/Bad direct insert, 23505 -> locked), `/me`. Ship to prod, verify login. Delete `frontend/`.
-Wave 2: `/saved`, `/follow`, `/influencers`, `/influencer/[id]` on the new tables.
+`/saved` (saved_places join place_cards), `/influencers` (creators + follower counts), `/influencer/[id]` (creator + their posts + follow toggle). Index migration for the two FKs lands here.
 
 ## Risks (architect watch-list)
 
-- Edge Route Handlers + `@supabase/ssr` middleware: keep handlers anon-only so no cookie logic runs at the edge.
-- MapTiler free tier: 100k tile loads/month; SW tile cache is the mitigation. Add key domain restriction.
-- SW caching `/api/*` can serve stale vote counts; network-first mitigates, never cache-first.
-- `place_cards` full scan in RPC is fine at hundreds of rows; add an index note when >5k.
+- Seed geocoding by hand is error-prone: W1-0 must spot-check 5 places on a map before marking done.
+- `maplibre-gl` bundle (~250 kB gz) must be `dynamic(..., {ssr:false})` and only on `/`; do not import it in `layout`.
+- SW cache-first on tiles + a changed style JSON = stale style; version the SW cache name on every style change.
+- Edge handlers stay anon-only; cookie logic only in middleware / server components.
+- MapTiler free tier 100k tile loads/month; watch after launch.
 
 ## How to run / deploy
 
 ```bash
-# New app (Wave 0+)
-cd web && npm i && cp .env.example .env.local     # dev project keys + MapTiler key
+cd web && npm i && cp .env.example .env.local     # dev keys + MapTiler key
 npm run dev                                       # http://localhost:3000
-npm run build && npx tsc --noEmit
+npm run build && npx tsc --noEmit && npm test
 
-# Supabase
 supabase link --project-ref ntujoeyymyeawjngyjld  # dev (default)
 supabase db push                                  # migrations to linked project
-# prod: link qqricrkfbdehzqxvzuhp, db push, relink to dev. NEVER seed prod.
+supabase db reset --linked                        # dev only: re-run seed (NEVER on prod)
+# prod: link qqricrkfbdehzqxvzuhp, db push, relink to dev.
 
-# Deploy: git push origin main -> Vercel (root vercel.json points at web/ after W0-1)
+git push origin feat/production-pwa               # Vercel preview -> dev
 ```
 
 Guardrails: MCP = dev, read-only. No `service_role` in app code. Prod reachable only by deliberate CLI link.

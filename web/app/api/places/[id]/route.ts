@@ -30,7 +30,11 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json(errorBody("DB_ERROR", error.message), { status: 400 });
+    console.error("GET /api/places/[id]: place_cards query failed", error);
+    return NextResponse.json(
+      errorBody("DB_ERROR", "Something went wrong."),
+      { status: 500 }
+    );
   }
   if (!data) {
     return NextResponse.json(PLACE_NOT_FOUND, { status: 404 });

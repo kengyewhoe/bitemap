@@ -29,15 +29,28 @@ export async function GET(request: Request) {
     );
   }
 
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return NextResponse.json(
+      errorBody("VALIDATION_ERROR", "lat must be between -90 and 90; lng must be between -180 and 180."),
+      { status: 400 }
+    );
+  }
+
+  const clampedRadiusKm = Math.min(Math.max(radiusKm, 0), 50);
+
   const supabase = anonClient();
   const { data, error } = await supabase.rpc("nearby_places", {
     p_lat: lat,
     p_lng: lng,
-    p_radius_km: radiusKm,
+    p_radius_km: clampedRadiusKm,
   });
 
   if (error) {
-    return NextResponse.json(errorBody("DB_ERROR", error.message), { status: 400 });
+    console.error("GET /api/nearby: nearby_places RPC failed", error);
+    return NextResponse.json(
+      errorBody("DB_ERROR", "Something went wrong."),
+      { status: 500 }
+    );
   }
 
   const rows = (data ?? []) as PlaceCardRow[];
