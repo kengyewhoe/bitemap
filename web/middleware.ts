@@ -4,7 +4,8 @@ import { updateSession } from "@/lib/supabase/middleware";
 // Per-request CSP nonce, following the official Next.js App Router pattern:
 // https://nextjs.org/docs/app/guides/content-security-policy
 export async function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // Edge runtime (middleware always runs on Edge) has no Node Buffer; use btoa.
+  const nonce = btoa(crypto.randomUUID());
 
   const csp = [
     "default-src 'self'",
