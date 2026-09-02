@@ -22,44 +22,18 @@ export function maptilerStyleUrl(key: string): string {
 }
 
 // Keyless fallback so the map still renders in dev/CI/forks with no
-// MapTiler key provisioned: a CARTO dark-matter raster basemap (no API key
-// required for reasonable use), tinted toward map-background via a
-// background layer underneath the raster tiles.
-const FALLBACK_RASTER_STYLE: StyleSpecification = {
-  version: 8,
-  name: "bitemap-fallback-dark",
-  sources: {
-    "carto-dark": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors © CARTO",
-    },
-  },
-  layers: [
-    {
-      id: "bitemap-background",
-      type: "background",
-      paint: { "background-color": "#0B0B0C" },
-    },
-    {
-      id: "carto-dark-layer",
-      type: "raster",
-      source: "carto-dark",
-      paint: { "raster-opacity": 0.85 },
-    },
-  ],
-};
+// MapTiler key provisioned: OpenFreeMap's "dark" vector style — genuinely
+// free, keyless, and (unlike CARTO's basemaps.cartocdn.com raster tiles,
+// which now render an "API KEY REQUIRED" watermark) has no watermark.
+// MapLibre consumes this style JSON URL directly. The style's own
+// background layer is already close to map-background (#0B0B0C / rgb(12,12,12)),
+// so we don't need to override it.
+const OPENFREEMAP_DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
 
 // Returns whatever MapLibre's `style` option accepts: a style JSON URL
-// string (MapTiler) or an inline StyleSpecification (keyless fallback).
+// string (MapTiler, or the OpenFreeMap keyless fallback).
 export function getMapStyle(): string | StyleSpecification {
   const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   if (key) return maptilerStyleUrl(key);
-  return FALLBACK_RASTER_STYLE;
+  return OPENFREEMAP_DARK_STYLE_URL;
 }

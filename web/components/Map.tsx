@@ -67,10 +67,25 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
     map.on("load", () => {
       readyRef.current = true;
+      // MapLibre can measure a zero-size container if it initializes before
+      // layout settles (e.g. inside a full-bleed absolute-inset parent whose
+      // size isn't final on first paint), which leaves the map blank until
+      // the user interacts. Force a resize once the map has loaded so it
+      // always paints tiles immediately.
+      map.resize();
     });
     mapRef.current = map;
 
+    // Keep the map filling its container (and re-triggering tile loads) any
+    // time the container's own box changes size, independent of window
+    // resize events.
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize();
+    });
+    resizeObserver.observe(containerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       Object.values(markersRef.current).forEach(({ marker, root }) => {
         root.unmount();
         marker.remove();
