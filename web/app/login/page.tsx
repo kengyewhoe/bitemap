@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/next-param";
 
 export default function LoginPage() {
   return (
@@ -17,14 +18,19 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const callbackError = searchParams.get("error");
+  // Validated again (safeNext) here on the way out, and once more by
+  // /auth/callback on the way back in — the value only ever survives the
+  // OAuth round-trip as a query string, so both ends must distrust it.
+  const next = safeNext(searchParams.get("next"), "/location");
 
   async function handleGoogleSignIn() {
     setPending(true);
     setError(null);
     const supabase = createClient();
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo },
     });
     // signInWithOAuth redirects the browser to Google itself. Do NOT navigate
     // here (location.href / router.push) — a manual nav races the OAuth

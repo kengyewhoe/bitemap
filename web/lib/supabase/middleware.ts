@@ -1,8 +1,14 @@
-// GUARDED ROUTES — update this list as Wave 1/2 screens land.
+// GUARDED ROUTES — signed-in only. Unauthenticated visitors are bounced to
+// /login?next=<path>. Update this list as Wave 1/2 screens land.
+//   /me       — profile
+//   /saved    — saved places
+//   /follow   — follow-onboarding step (writes to `follows`)
+//   /location — location-onboarding step (post-login landing page)
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNext } from "@/lib/next-param";
 
-const GUARDED_PREFIXES = ["/me", "/saved", "/follow"];
+const GUARDED_PREFIXES = ["/me", "/saved", "/follow", "/location"];
 
 function isGuarded(pathname: string): boolean {
   return GUARDED_PREFIXES.some(
@@ -47,7 +53,10 @@ export async function updateSession(request: NextRequest) {
   if (!user && isGuarded(request.nextUrl.pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    redirectUrl.searchParams.set(
+      "next",
+      safeNext(request.nextUrl.pathname, request.nextUrl.pathname)
+    );
     return NextResponse.redirect(redirectUrl);
   }
 
