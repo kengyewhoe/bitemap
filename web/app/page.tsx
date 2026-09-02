@@ -183,10 +183,10 @@ export default function HomePage() {
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="absolute inset-x-4 bottom-24 z-30 flex items-center justify-between rounded-lg bg-primary-container px-5 py-3.5 font-title-md text-title-md text-on-primary shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+          className="absolute inset-x-4 bottom-24 z-30 flex items-center justify-between rounded-lg bg-primary-container px-5 py-3.5 font-title-md text-title-md text-on-primary-container shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
         >
           <span>Nearby picks</span>
-          <span className="text-sm font-semibold opacity-90">
+          <span className="text-sm font-semibold">
             {loading ? "…" : `${filteredItems.length} nearby`}
           </span>
         </button>

@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 web/.scratch/
+
+# generated: mirrors node_modules/maplibre-gl/dist, see scripts/sync-maplibre-worker.mjs
+/public/maplibre-gl/

@@ -43,7 +43,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-full flex flex-1 flex-col items-center justify-center gap-6 px-6">
+    <main className="min-h-full flex flex-1 flex-col items-center justify-center gap-6 px-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-2xl">Sign in to BiteMap</h1>
         <p className="text-on-surface/70 text-sm">
@@ -65,6 +65,6 @@ function LoginForm() {
       >
         {pending ? "Redirecting…" : "Continue with Google"}
       </button>
-    </div>
+    </main>
   );
 }

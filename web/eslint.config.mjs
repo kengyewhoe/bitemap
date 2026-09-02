@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated CommonJS test artifacts from `npm test`.
     "lib/.dist-test/**",
+    // Generated: unmodified copy of maplibre-gl's worker runtime, see
+    // scripts/sync-maplibre-worker.mjs.
+    "public/maplibre-gl/**",
   ]),
   {
     rules: {

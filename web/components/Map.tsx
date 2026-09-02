@@ -7,11 +7,23 @@
 // `window` at module scope).
 import { useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { Map as MapLibreMap, Marker, AttributionControl } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, AttributionControl, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { getMapStyle } from "@/lib/mapStyle";
 import { Pin } from "./Pin";
 import type { NearbyItem } from "@/lib/types";
+
+// Point maplibre-gl at a same-origin copy of its worker runtime under
+// public/maplibre-gl/ (synced by scripts/sync-maplibre-worker.mjs) instead
+// of letting it resolve its own bundled worker URL. Next/Turbopack
+// content-hashes maplibre-gl's worker chunk and its "./maplibre-gl-shared.mjs"
+// dependency *independently*, so the worker's hard-coded relative import
+// no longer matches the shared chunk's actual emitted filename — the
+// worker's module graph 404s the instant the browser tries to load it,
+// silently forcing all vector-tile parsing onto the main thread. Serving
+// both files, unmodified, as plain static assets from the same directory
+// keeps that relative import valid (sibling files, no bundler involved).
+setWorkerUrl("/maplibre-gl/maplibre-gl-worker.mjs");
 
 export type LatLng = { lat: number; lng: number };
 

@@ -252,7 +252,7 @@ export default async function PlacePage({
           href={directionsUrl(place)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mb-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-6 py-3.5 font-title-md text-title-md text-on-primary shadow-sm active:opacity-90"
+          className="mb-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary-container px-6 py-3.5 font-title-md text-title-md text-on-primary-container shadow-sm active:opacity-90"
         >
           Directions
         </a>
