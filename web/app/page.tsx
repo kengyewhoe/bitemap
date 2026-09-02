@@ -70,7 +70,7 @@ export default function HomePage() {
     );
   }, [loadNearby]);
 
-  useEffect(() => {
+  const start = useCallback(() => {
     // Coords from /location ("Use my location") win, so arriving with
     // ?lat=&lng= doesn't re-prompt geolocation; otherwise ask on mount.
     const params = new URLSearchParams(window.location.search);
@@ -84,8 +84,12 @@ export default function HomePage() {
     } else {
       requestLocation();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadNearby, requestLocation]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    start();
+  }, [start]);
 
   const filteredItems = useMemo(() => {
     const term = query.trim().toLowerCase();
