@@ -1,5 +1,11 @@
 {
   "devDependencies": {
     "supabase": "^2.116.0"
+  },
+  "scripts": {
+    "db:link": "supabase link --project-ref",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff",
+    "db:migrations": "supabase migration list"
   }
 }

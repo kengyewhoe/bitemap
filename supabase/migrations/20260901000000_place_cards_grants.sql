@@ -1,0 +1,12 @@
+-- BiteMap schema, migration 5: make the place_cards read grant explicit.
+--
+-- The frontend (frontend/js/api.js) reads public.place_cards as anon and
+-- authenticated. Supabase's default privileges usually grant SELECT on new
+-- public relations to these roles, but relying on that is implicit; a fresh
+-- project or a changed default would leave the view unreadable (PostgREST 401).
+-- Grant it here so the app's dependency lives in the migration history.
+--
+-- place_cards is security_invoker, so this SELECT does not widen row access:
+-- the underlying places/posts/platform_accounts RLS policies still decide which
+-- rows each role sees. Granting SELECT on the view only makes it queryable.
+grant select on public.place_cards to anon, authenticated;
