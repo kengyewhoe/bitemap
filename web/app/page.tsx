@@ -4,7 +4,7 @@
 // filter + recenter, a "Nearby picks" CTA opening a bottom sheet list, and
 // a peek card on pin tap. Fetches GET /api/nearby client-side using the
 // browser's geolocation, falling back to KL center / "Browse KL".
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
@@ -34,6 +34,8 @@ export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [halalOnly, setHalalOnly] = useState(false);
+  const [searchResults, setSearchResults] = useState<NearbyItem[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const loadNearby = useCallback((lat: number, lng: number) => {
     setLoading(true);
@@ -43,6 +45,53 @@ export default function HomePage() {
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Debounced KL-wide search: when `query` is non-empty, hit /api/search
+  // instead of just filtering the ~11 already-loaded nearby items. An
+  // incrementing request id guards against an older, slower response
+  // clobbering a newer one.
+  const searchRequestId = useRef(0);
+  const trimmedQuery = query.trim();
+
+  useEffect(() => {
+    if (!trimmedQuery) {
+      searchRequestId.current += 1;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const id = ++searchRequestId.current;
+    setSearching(true);
+    setSheetOpen(true);
+
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({ q: trimmedQuery });
+      params.set("lat", String(center.lat));
+      params.set("lng", String(center.lng));
+      fetch(`/api/search?${params.toString()}`)
+        .then((res) => res.json())
+        .then((data: { items?: NearbyItem[] }) => {
+          if (searchRequestId.current !== id) return; // stale response
+          setSearchResults(data.items ?? []);
+        })
+        .catch(() => {
+          if (searchRequestId.current !== id) return;
+          setSearchResults([]);
+        })
+        .finally(() => {
+          if (searchRequestId.current === id) setSearching(false);
+        });
+    }, 250);
+
+    return () => clearTimeout(timer);
+    // center is intentionally omitted: re-centering shouldn't re-fire an
+    // in-flight search, only the debounce/query should.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmedQuery]);
+
+  const isSearchActive = trimmedQuery.length > 0;
 
   const requestLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -91,14 +140,15 @@ export default function HomePage() {
     start();
   }, [start]);
 
+  // The halal filter always applies on top of whichever set is active
+  // (nearby by default, KL-wide search results while a query is typed).
+  // Name/area matching itself is no longer done client-side — /api/search
+  // does that across all of KL, not just the ~11 nearby cards.
   const filteredItems = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return items.filter((p) => {
-      if (halalOnly && !HALAL_FRIENDLY.has(p.halal_status)) return false;
-      if (!term) return true;
-      return p.name.toLowerCase().includes(term) || (p.area ?? "").toLowerCase().includes(term);
-    });
-  }, [items, query, halalOnly]);
+    const baseItems = isSearchActive ? searchResults ?? [] : items;
+    if (!halalOnly) return baseItems;
+    return baseItems.filter((p) => HALAL_FRIENDLY.has(p.halal_status));
+  }, [isSearchActive, searchResults, items, halalOnly]);
 
   // Derived, not stored: if a selection filters out of view (search/diet
   // filter change), it simply stops resolving to an item here — no effect
@@ -185,22 +235,30 @@ export default function HomePage() {
           onClick={() => setSheetOpen(true)}
           className="absolute inset-x-4 bottom-24 z-30 flex items-center justify-between rounded-lg bg-primary-container px-5 py-3.5 font-title-md text-title-md text-on-primary-container shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
         >
-          <span>Nearby picks</span>
+          <span>{isSearchActive ? "Results" : "Nearby picks"}</span>
           <span className="text-sm font-semibold">
-            {loading ? "…" : `${filteredItems.length} nearby`}
+            {loading || searching ? "…" : `${filteredItems.length}${isSearchActive ? "" : " nearby"}`}
           </span>
         </button>
       )}
 
-      <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen} title="Nearby picks">
+      <BottomSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        title={isSearchActive ? "Results" : "Nearby picks"}
+      >
         <p className="mb-3 -mt-1 font-body-md text-sm text-sheet-on-surface-muted">
-          Recent mentions · within {RADIUS_KM} km
+          {isSearchActive ? `Results for '${trimmedQuery}'` : `Recent mentions · within ${RADIUS_KM} km`}
         </p>
-        {loading && <p className="py-8 text-center text-sheet-on-surface-muted">Loading…</p>}
-        {!loading && filteredItems.length === 0 && (
+        {(loading || searching) && <p className="py-8 text-center text-sheet-on-surface-muted">Loading…</p>}
+        {!loading && !searching && filteredItems.length === 0 && (
           <div className="rounded-lg border border-sheet-outline bg-sheet-surface-low p-5 text-center">
-            <p className="font-title-md text-title-md text-tertiary-dark">No places nearby</p>
-            <p className="mt-1 text-sm text-sheet-on-surface-muted">Try clearing search or filters.</p>
+            <p className="font-title-md text-title-md text-tertiary-dark">
+              {isSearchActive ? `No places match '${trimmedQuery}'` : "No places nearby"}
+            </p>
+            <p className="mt-1 text-sm text-sheet-on-surface-muted">
+              {isSearchActive ? "Try a different search term." : "Try clearing search or filters."}
+            </p>
           </div>
         )}
         <div className="space-y-2 pb-4">

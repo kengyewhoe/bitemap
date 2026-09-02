@@ -55,8 +55,10 @@ export function goodPctShort(good_pct: number | null): string {
   return good_pct == null ? "New" : `${good_pct}% Good`;
 }
 
-export function formatKm(distance_km: number | null): string {
-  return `${distance_km} km`;
+// null when distance is unknown (e.g. search results with no origin) —
+// never render "null km".
+export function formatKm(distance_km: number | null): string | null {
+  return distance_km == null ? null : `${distance_km} km`;
 }
 
 // Display dates as DD/MM/YYYY (wire format stays ISO 8601).
