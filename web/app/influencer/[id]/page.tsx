@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Button } from "@/components/Button";
 import { FollowButton } from "@/components/FollowButton";
+import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/server";
 
 interface CreatorRow {
@@ -119,15 +120,8 @@ export default async function InfluencerPage({
     <main className="flex-1 bg-sheet-background pb-28">
       <div className="mx-auto max-w-md px-gutter pt-6">
         <div className="mb-4 flex flex-col items-center text-center">
-          <div className="mb-3 h-24 w-24 overflow-hidden rounded-full border-4 border-sheet-surface bg-sheet-surface-low">
-            {creator.avatar_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={creator.avatar_url}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            )}
+          <div className="mb-3 h-24 w-24 overflow-hidden rounded-full border-4 border-sheet-surface bg-sheet-surface-low text-2xl">
+            <Avatar src={creator.avatar_url} name={creator.display_name} seed={creator.id} />
           </div>
           <h1 className="font-headline-sheet text-headline-sheet text-sheet-on-surface">
             {creator.display_name}
