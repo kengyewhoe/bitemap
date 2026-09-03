@@ -167,7 +167,7 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
     }
   }, [items, selectedId, onSelect]);
 
-  return <div ref={containerRef} className={`h-full w-full bg-map-background ${className}`} />;
+  return <div ref={containerRef} className={`h-full w-full bg-sheet-surface-low ${className}`} />;
 }
 
 export default Map;

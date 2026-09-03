@@ -47,7 +47,12 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, manifest, sw.js, icons and other public assets
+     * - .mjs (the same-origin maplibre-gl worker + its shared chunk under
+     *   public/maplibre-gl/): applying the page CSP to the worker script blocks
+     *   its sibling import under 'strict-dynamic', so the worker hangs and no
+     *   vector tiles ever parse (blank basemap). Serve it uncapped like other
+     *   static assets.
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|mjs)$).*)",
   ],
 };
