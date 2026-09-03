@@ -8,6 +8,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
 
 export type FollowCreator = {
@@ -108,14 +109,7 @@ export function FollowList({
               className="flex items-center gap-4 p-4"
             >
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-sheet-surface-low">
-                {creator.avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={creator.avatarUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                )}
+                <Avatar src={creator.avatarUrl} name={creator.displayName} seed={creator.id} />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="truncate font-title-md text-[16px] text-sheet-on-surface">

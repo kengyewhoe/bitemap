@@ -1,0 +1,42 @@
+{
+  "data": {
+    "user": {
+      "id": "12345",
+      "username": "mingchuun",
+      "full_name": "Ming Chun",
+      "biography": "KL food. DM for collabs.",
+      "profile_pic_url": "https://scontent.cdninstagram.com/pic_lowres.jpg?oe=ABC",
+      "profile_pic_url_hd": "https://scontent.cdninstagram.com/pic_hd.jpg?oe=ABC",
+      "edge_followed_by": { "count": 127000 },
+      "edge_owner_to_timeline_media": {
+        "edges": [
+          {
+            "node": {
+              "__typename": "GraphVideo",
+              "shortcode": "Cxyz123",
+              "is_video": true,
+              "product_type": "clips",
+              "display_url": "https://scontent.cdninstagram.com/reel_thumb.jpg?oe=DEF",
+              "taken_at_timestamp": 1756944000,
+              "edge_media_to_caption": {
+                "edges": [{ "node": { "text": "Best nasi lemak in Bangsar 🔥" } }]
+              },
+              "location": { "name": "Village Park Restaurant", "slug": "village-park" }
+            }
+          },
+          {
+            "node": {
+              "__typename": "GraphImage",
+              "shortcode": "Cabc789",
+              "is_video": false,
+              "display_url": "https://scontent.cdninstagram.com/img_thumb.jpg?oe=GHI",
+              "taken_at_timestamp": 1756857600,
+              "edge_media_to_caption": { "edges": [] },
+              "location": null
+            }
+          }
+        ]
+      }
+    }
+  }
+}

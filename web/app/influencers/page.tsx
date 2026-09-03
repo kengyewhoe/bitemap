@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
 import { FollowButton } from "@/components/FollowButton";
+import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/server";
 
 interface CreatorRow {
@@ -56,14 +57,7 @@ export default async function InfluencersPage() {
               <Card key={creator.id} className="flex items-center gap-4">
                 <Link href={`/influencer/${creator.id}`} className="shrink-0">
                   <div className="h-14 w-14 overflow-hidden rounded-full bg-sheet-surface-low">
-                    {creator.avatar_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={creator.avatar_url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    )}
+                    <Avatar src={creator.avatar_url} name={creator.display_name} seed={creator.id} />
                   </div>
                 </Link>
                 <Link href={`/influencer/${creator.id}`} className="min-w-0 flex-1">

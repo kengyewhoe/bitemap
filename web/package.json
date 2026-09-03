@@ -8,6 +8,7 @@
     "prebuild": "node scripts/sync-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start",
+    "stop": "lsof -ti tcp:3000 | xargs kill 2>/dev/null || true",
     "lint": "eslint",
     "test": "rm -rf lib/.dist-test && tsc lib/types.ts lib/reshape.ts lib/format.ts lib/__tests__/*.test.ts --outDir lib/.dist-test --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --resolveJsonModule --strict --target ES2020 && node --test lib/.dist-test/__tests__/*.test.js"
   },

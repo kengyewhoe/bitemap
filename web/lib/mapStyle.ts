@@ -11,7 +11,7 @@ import type { StyleSpecification } from "maplibre-gl";
 // "dataviz-dark" is MapTiler's nocturnal vector style closest to
 // map-background; swap the id here if design picks a different MapTiler
 // style at ship time.
-const MAPTILER_STYLE_ID = "dataviz-dark";
+const MAPTILER_STYLE_ID = "dataviz-light";
 
 // If this style URL/id ever changes, the sw.js tile cache
 // ("bitemap-tiles-v1", cache-first on api.maptiler.com) will keep serving
@@ -22,18 +22,16 @@ export function maptilerStyleUrl(key: string): string {
 }
 
 // Keyless fallback so the map still renders in dev/CI/forks with no
-// MapTiler key provisioned: OpenFreeMap's "dark" vector style — genuinely
-// free, keyless, and (unlike CARTO's basemaps.cartocdn.com raster tiles,
-// which now render an "API KEY REQUIRED" watermark) has no watermark.
-// MapLibre consumes this style JSON URL directly. The style's own
-// background layer is already close to map-background (#0B0B0C / rgb(12,12,12)),
-// so we don't need to override it.
-const OPENFREEMAP_DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+// MapTiler key provisioned: OpenFreeMap's "positron" vector style — a clean
+// light basemap, genuinely free, keyless, and (unlike CARTO's
+// basemaps.cartocdn.com raster tiles, which now render an "API KEY REQUIRED"
+// watermark) has no watermark. MapLibre consumes this style JSON URL directly.
+const OPENFREEMAP_LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 
 // Returns whatever MapLibre's `style` option accepts: a style JSON URL
 // string (MapTiler, or the OpenFreeMap keyless fallback).
 export function getMapStyle(): string | StyleSpecification {
   const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
   if (key) return maptilerStyleUrl(key);
-  return OPENFREEMAP_DARK_STYLE_URL;
+  return OPENFREEMAP_LIGHT_STYLE_URL;
 }
