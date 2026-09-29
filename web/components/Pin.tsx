@@ -34,14 +34,18 @@ export function Pin({ heat, selected = false, label }: PinProps) {
   const glow = selected ? HEAT_GLOW_SELECTED[heat] : HEAT_GLOW[heat];
 
   return (
-    <div className="flex flex-col items-center gap-1" aria-label={label}>
+    // No aria-label here: the interactive marker element in Map.tsx (the
+    // Marker's DOM anchor, role="button") already carries the accessible
+    // name — a second one on this inert wrapper would just be ignored by
+    // assistive tech (or duplicate it).
+    <div className="flex flex-col items-center gap-1">
       <span
         className={`rounded-full border border-map-outline ${size} ${HEAT_COLOR[heat]} ${glow} transition-all ${
           selected ? "ring-2 ring-map-mango ring-offset-2 ring-offset-map-background" : ""
         }`}
       />
       {label && (
-        <span className="rounded bg-map-surface/90 px-1.5 py-0.5 font-map-pin text-map-pin text-map-on-surface">
+        <span className="max-w-[88px] truncate rounded bg-map-surface/90 px-1.5 py-0.5 font-map-pin text-map-pin text-map-on-surface">
           {label}
         </span>
       )}

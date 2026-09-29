@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SignOutButton } from "./SignOutButton";
 
 type UserRow = {
   display_name: string | null;
@@ -94,18 +96,18 @@ export default async function MePage() {
       </section>
 
       <nav aria-label="Account links" className="mb-6 flex flex-col gap-2">
-        <a
+        <Link
           href="/saved"
           className="rounded-lg border border-sheet-outline bg-sheet-surface px-4 py-3 font-title-md text-title-md"
         >
           Saved places
-        </a>
-        <a
+        </Link>
+        <Link
           href="/influencers"
           className="rounded-lg border border-sheet-outline bg-sheet-surface px-4 py-3 font-title-md text-title-md"
         >
-          Influencers I follow
-        </a>
+          Browse influencers
+        </Link>
       </nav>
 
       <Card className="mb-6">
@@ -113,7 +115,7 @@ export default async function MePage() {
           Account
         </h3>
         <p className="text-body-md text-sheet-on-surface-muted">
-          Signed in with Google. Linked accounts are backend-owned.
+          Signed in with Google. Your account is managed by Google.
         </p>
       </Card>
 
@@ -122,12 +124,7 @@ export default async function MePage() {
       </div>
 
       <form action={signOut}>
-        <button
-          type="submit"
-          className="w-full rounded-lg border border-error-container bg-sheet-surface py-4 font-title-md text-title-md text-error"
-        >
-          Sign out
-        </button>
+        <SignOutButton />
       </form>
 
       <Nav active="me" />

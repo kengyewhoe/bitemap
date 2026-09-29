@@ -1,7 +1,9 @@
 // Creator avatar with a graceful initials fallback. `avatar_url` is null for
 // creators whose Instagram profile pic hasn't been fetched into Storage yet
-// (see seed/PLAYBOOK.md), so we never render an empty circle — we show the
+// (see seed/PLAYBOOK.md), and a fetched URL can itself 404 (L3/C6), so we
+// never render an empty circle or a broken-image glyph — we show the
 // creator's initials on a deterministic tinted background instead.
+import { ImgWithFallback } from "./ImgWithFallback";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -11,11 +13,14 @@ function initials(name: string): string {
 }
 
 // Deterministic tint per creator so the same person always gets the same
-// color across list/detail views. Palette pulls from design.md pin accents.
+// color across list/detail views. Uses the app's semantic container/on-*
+// token pairs (not the fixed-hex map-* palette) — each pair is already
+// tuned per theme to read at >=4.5:1 against its own container, which the
+// raw map-* tints did not guarantee in light mode (L3).
 const TINTS = [
-  "bg-map-mango/20 text-map-mango",
-  "bg-map-chili/20 text-map-chili",
-  "bg-map-lime/25 text-map-lime",
+  "bg-primary-container/25 text-primary",
+  "bg-secondary-container/40 text-secondary",
+  "bg-tertiary-container/25 text-tertiary",
 ];
 
 function tintFor(seed: string): string {
@@ -36,19 +41,20 @@ export function Avatar({
   seed?: string;
   className?: string;
 }) {
-  if (src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt="" className={`h-full w-full object-cover ${className}`} />
-    );
-  }
   return (
-    <div
-      aria-hidden
-      className={`flex h-full w-full items-center justify-center font-title-md ${tintFor(seed ?? name)} ${className}`}
-    >
-      {initials(name)}
-    </div>
+    <ImgWithFallback
+      src={src}
+      alt=""
+      className={`h-full w-full object-cover ${className}`}
+      fallback={
+        <div
+          aria-hidden
+          className={`flex h-full w-full items-center justify-center font-title-md ${tintFor(seed ?? name)} ${className}`}
+        >
+          {initials(name)}
+        </div>
+      }
+    />
   );
 }
 

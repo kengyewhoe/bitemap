@@ -52,6 +52,11 @@
   --color-sheet-on-surface-muted: #5a6570;
   --color-sheet-outline: rgba(25, 28, 30, 0.08);
   --color-tertiary-dark: #233148;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -94,6 +99,11 @@
     --color-sheet-on-surface-muted: #a3abb3;
     --color-sheet-outline: rgba(230, 233, 236, 0.12);
     --color-tertiary-dark: #b9d4f2;
+    --color-error: #ffb4ab;
+    --color-on-error: #690005;
+    --color-error-container: #93000a;
+    --color-on-error-container: #ffdad6;
+    color-scheme: dark;
   }
 }
 
@@ -136,6 +146,11 @@
   --color-sheet-on-surface-muted: #a3abb3;
   --color-sheet-outline: rgba(230, 233, 236, 0.12);
   --color-tertiary-dark: #b9d4f2;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  color-scheme: dark;
 }
 
 :root[data-theme="light"] {
@@ -177,8 +192,49 @@
   --color-sheet-on-surface-muted: #5a6570;
   --color-sheet-outline: rgba(25, 28, 30, 0.08);
   --color-tertiary-dark: #233148;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  color-scheme: light;
 }
 
 body {
   background-color: var(--color-surface);
+}
+
+/* F2: global keyboard focus indicator — pairs with per-component
+ * focus-visible rings; this is the fallback so no interactive element is
+ * ever focusable with zero visible state. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* F3: shared page container (K7). Waves B/C/E apply this class name only;
+ * it is defined here and nowhere else. Mobile: full width, 16px side
+ * padding. Desktop (>=768px): centered, capped width. */
+.app-column {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 28rem;
+  padding-inline: 16px;
+}
+@media (min-width: 768px) {
+  .app-column {
+    max-width: 42rem;
+  }
+}
+
+/* F4: respect reduced-motion — the map's permanent low-heat pin ping and
+ * sheet/marker transitions should not run for users who opted out. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

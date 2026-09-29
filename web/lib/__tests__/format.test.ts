@@ -60,3 +60,15 @@ test("heatToPinClass: falls back to medium for unknown heat", () => {
 test("formatKm: appends unit", () => {
   assert.equal(formatKm(0.4), "0.4 km");
 });
+
+test("formatKm: rounds to 1 decimal", () => {
+  assert.equal(formatKm(1.2345678), "1.2 km");
+});
+
+test("formatKm: sub-100m shows <100 m", () => {
+  assert.equal(formatKm(0.05), "<100 m");
+});
+
+test("formatKm: null stays null", () => {
+  assert.equal(formatKm(null), null);
+});

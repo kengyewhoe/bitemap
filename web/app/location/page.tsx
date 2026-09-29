@@ -7,18 +7,20 @@
 // Guarded by middleware (signed-in only); this is where /auth/callback sends
 // first-time users post-login.
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { Icon } from "@/components/icons";
 
 export default function LocationPage() {
   const router = useRouter();
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function goToMap(coords?: { lat: number; lng: number }) {
+  function goToMap(coords?: { lat: number; lng: number }, fallback?: boolean) {
     if (!coords) {
-      router.push("/");
+      router.push(fallback ? "/?fallback=1" : "/");
       return;
     }
     const params = new URLSearchParams({
@@ -45,10 +47,12 @@ export default function LocationPage() {
       () => {
         // Denied / unavailable → fall back to the KL centroid, same as
         // "Browse KL". lat/lng are only ever a query param on the map, never
-        // persisted server-side.
+        // persisted server-side. `?fallback=1` carries the notice through to
+        // the map so it isn't announced here and immediately navigated away
+        // from with nothing shown for it.
         setLocating(false);
         setError("Couldn't get your location — browsing KL instead.");
-        goToMap();
+        goToMap(undefined, true);
       },
       { enableHighAccuracy: false, timeout: 8000 }
     );
@@ -63,8 +67,8 @@ export default function LocationPage() {
       <div aria-hidden className="absolute inset-0 opacity-40 [background:radial-gradient(circle_at_30%_20%,theme(colors.map-outline)_0,transparent_55%)]" />
 
       <Card className="relative z-10 w-full max-w-md p-sheet-padding text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-container/10">
-          <span aria-hidden className="text-3xl">📍</span>
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary-container/10 text-primary-container">
+          <Icon name="map" size={28} />
         </div>
         <h1 className="mb-3 font-headline-sheet text-headline-sheet text-sheet-on-surface">
           Find the real heat
@@ -94,11 +98,19 @@ export default function LocationPage() {
             type="button"
             variant="secondary"
             className="w-full"
+            disabled={locating}
             onClick={() => goToMap()}
           >
             Browse KL
           </Button>
         </div>
+
+        <Link
+          href="/"
+          className="mt-6 inline-flex min-h-11 items-center justify-center px-2 text-sm text-sheet-on-surface-muted underline underline-offset-2"
+        >
+          Back to map
+        </Link>
       </Card>
     </main>
   );

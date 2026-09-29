@@ -9,6 +9,8 @@
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Card } from "@/components/Card";
+import { Button } from "@/components/Button";
+import { Icon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
 import { halalBadge, priceBandLabel, goodPctLabel } from "@/lib/format";
 import { computeGoodPct, type PlaceCardRow } from "@/lib/reshape";
@@ -58,6 +60,9 @@ export default async function SavedPage() {
           <p className="font-body-md text-body-md text-sheet-on-surface-muted">
             Bookmark a place from the map to see it here.
           </p>
+          <Button href="/" variant="primary" className="mt-2">
+            Open the map
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-gutter">
@@ -77,7 +82,9 @@ export default async function SavedPage() {
                       className="h-16 w-16 shrink-0 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="h-16 w-16 shrink-0 rounded-lg bg-sheet-surface-low" />
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-sheet-surface-low text-sheet-on-surface-muted">
+                      <Icon name="restaurant" size={24} />
+                    </div>
                   )}
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-title-md text-[16px] text-sheet-on-surface">

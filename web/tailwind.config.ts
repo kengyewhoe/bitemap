@@ -44,10 +44,13 @@ const config: Config = {
         "on-tertiary": "var(--color-on-tertiary)",
         "tertiary-container": "var(--color-tertiary-container)",
         "on-tertiary-container": "var(--color-on-tertiary-container)",
-        error: "#ba1a1a",
-        "on-error": "#ffffff",
-        "error-container": "#ffdad6",
-        "on-error-container": "#93000a",
+        // Error tokens wired to CSS vars (globals.css) so the non-halal
+        // badge etc. stay legible on dark surfaces instead of a fixed
+        // light-mode pink.
+        error: "var(--color-error)",
+        "on-error": "var(--color-on-error)",
+        "error-container": "var(--color-error-container)",
+        "on-error-container": "var(--color-on-error-container)",
         "primary-fixed": "#ffdbcc",
         "primary-fixed-dim": "#ffb693",
         "on-primary-fixed": "#351000",
@@ -106,12 +109,20 @@ const config: Config = {
         xl: "1.5rem",
         full: "9999px",
       },
+      // Spacing scale: `unit` is the base 4px increment. `gutter` /
+      // `margin-mobile` are the mobile side inset (use these, not ad-hoc
+      // px-6, for the outer edge of full-bleed content). `margin-desktop`
+      // is the >=768px equivalent. `sheet-padding` is the BottomSheet's
+      // internal padding. `pb-nav` reserves space for the fixed bottom
+      // Nav (h-20 = 80px) plus the iOS home-indicator safe area — use it
+      // instead of hand-rolled `pb-28`/`pb-24` under scrollable content.
       spacing: {
         unit: "4px",
         gutter: "16px",
         "margin-mobile": "16px",
         "margin-desktop": "32px",
         "sheet-padding": "24px",
+        "pb-nav": "calc(80px + env(safe-area-inset-bottom, 0px))",
       },
     },
   },
