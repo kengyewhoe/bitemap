@@ -7,9 +7,18 @@ export async function middleware(request: NextRequest) {
   // Edge runtime (middleware always runs on Edge) has no Node Buffer; use btoa.
   const nonce = btoa(crypto.randomUUID());
 
+  // React's dev-mode runtime eval()s some of its own bundles; that's blocked
+  // by a CSP without 'unsafe-eval', so every page logs a CSP violation in
+  // dev even though nothing is actually broken. Keep it dev-only — a
+  // production CSP must never grant 'unsafe-eval'.
+  const scriptSrc =
+    process.env.NODE_ENV === "development"
+      ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+      : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     "img-src 'self' data: blob: https://*.supabase.co https://api.maptiler.com https://tiles.openfreemap.org",

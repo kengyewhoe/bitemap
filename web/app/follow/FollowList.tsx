@@ -5,6 +5,7 @@
 // (authed, owner-only RLS — see supabase/migrations/20260902000001) rather
 // than batching at "Done", so the toggle state can never drift from the DB.
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -75,12 +76,18 @@ export function FollowList({
   }
 
   return (
-    <main className="flex min-h-dvh w-full flex-1 flex-col bg-sheet-surface px-margin-mobile pb-32 pt-8">
-      <header className="mb-4 flex items-center justify-end">
+    <main className="flex min-h-dvh w-full flex-1 flex-col bg-sheet-surface px-margin-mobile pb-28 pt-8">
+      <header className="mb-4 flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex min-h-11 items-center px-2 text-sm text-sheet-on-surface-muted underline underline-offset-2"
+        >
+          Back to map
+        </Link>
         <button
           type="button"
           onClick={finish}
-          className="font-label-caps text-label-caps uppercase tracking-widest text-sheet-on-surface-muted"
+          className="inline-flex min-h-11 items-center rounded px-3 font-label-caps text-label-caps uppercase tracking-widest text-sheet-on-surface-muted"
         >
           Skip
         </button>
@@ -94,7 +101,7 @@ export function FollowList({
       </p>
 
       {error && (
-        <p className="mb-4 text-sm text-red-600" role="alert">
+        <p className="mb-4 text-sm text-error" role="alert">
           {error}
         </p>
       )}
@@ -144,7 +151,7 @@ export function FollowList({
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 w-full bg-gradient-to-t from-sheet-surface via-sheet-surface to-transparent px-margin-mobile pb-8 pt-12">
+      <div className="fixed bottom-0 left-0 w-full bg-gradient-to-t from-sheet-surface via-sheet-surface to-transparent px-margin-mobile pb-[max(2rem,env(safe-area-inset-bottom))] pt-12">
         <Button type="button" variant="primary" className="w-full" onClick={finish}>
           See the map
         </Button>

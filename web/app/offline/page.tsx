@@ -35,7 +35,7 @@ export default function OfflinePage() {
       <h1 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0 }}>
         You&apos;re offline
       </h1>
-      <p style={{ fontSize: "0.9rem", color: "#8e7164", maxWidth: 320 }}>
+      <p style={{ fontSize: "0.9rem", color: "#C9C4C5", maxWidth: 320 }}>
         BiteMap can&apos;t reach the network right now. Check your connection
         and try again — cached map areas you&apos;ve already visited may still
         work.

@@ -4,3 +4,6 @@ frontend/dist/
 frontend/.env
 .env.scraper
 scripts/instagram/.captured/
+.mcp.json
+web/.scratch/
+HANDOVER-auth-deploy-findings.md

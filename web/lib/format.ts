@@ -56,9 +56,12 @@ export function goodPctShort(good_pct: number | null): string {
 }
 
 // null when distance is unknown (e.g. search results with no origin) —
-// never render "null km".
+// never render "null km". Rounds to 1 decimal; sub-100m shows as "<100 m"
+// rather than "0.0 km".
 export function formatKm(distance_km: number | null): string | null {
-  return distance_km == null ? null : `${distance_km} km`;
+  if (distance_km == null) return null;
+  if (distance_km < 0.1) return "<100 m";
+  return `${distance_km.toFixed(1)} km`;
 }
 
 // Display dates as DD/MM/YYYY (wire format stays ISO 8601).

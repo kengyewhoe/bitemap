@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import {
   Anton,
@@ -36,9 +36,40 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "700"],
 });
 
+// No dedicated production domain is provisioned yet — fall back through the
+// env var a deploy can set, then Vercel's own runtime URL, then localhost
+// for dev. metadataBase only needs to resolve the openGraph image URL below.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "BiteMap",
-  description: "BiteMap",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "BiteMap",
+    template: "%s — BiteMap",
+  },
+  description:
+    "Find and vote on the best street food in KL, from the creators who actually eat there.",
+  openGraph: {
+    title: "BiteMap",
+    description:
+      "Find and vote on the best street food in KL, from the creators who actually eat there.",
+    images: ["/icon-512.png"],
+  },
+};
+
+// viewport-fit: cover is what makes env(safe-area-inset-*) resolve to a real
+// value instead of 0 on notched/home-indicator iOS devices — Nav.tsx and
+// BottomSheet.tsx both rely on that inset. themeColor is media-scoped so the
+// browser chrome matches the nocturnal map in dark and the app surface in
+// light, instead of staying white regardless of theme.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fff8f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0B0C" },
+  ],
 };
 
 // The CSP nonce set in middleware.ts only matches script tags rendered
@@ -59,6 +90,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      // The anti-FOUC script below sets data-theme on the client before
+      // React hydrates, which never matches the server-rendered markup
+      // (data-theme absent). That mismatch is expected and harmless — this
+      // silences the warning instead of trying to make the server guess a
+      // client-only localStorage value.
+      suppressHydrationWarning
       className={`${anton.variable} ${plusJakartaSans.variable} ${beVietnamPro.variable} ${dmSans.variable} h-full antialiased`}
     >
       <head>

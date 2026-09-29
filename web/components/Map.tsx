@@ -5,11 +5,11 @@
 // })` from page.tsx — never imported directly (which would drag maplibre-gl
 // into the server bundle / SSR pass and break it, since maplibre-gl touches
 // `window` at module scope).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Map as MapLibreMap, Marker, AttributionControl, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { getMapStyle } from "@/lib/mapStyle";
+import { getMapStyle, resolveEffectiveTheme, subscribeToThemeChange } from "@/lib/mapStyle";
 import { Pin } from "./Pin";
 import type { NearbyItem } from "@/lib/types";
 
@@ -24,6 +24,10 @@ import type { NearbyItem } from "@/lib/types";
 // both files, unmodified, as plain static assets from the same directory
 // keeps that relative import valid (sibling files, no bundler involved).
 setWorkerUrl("/maplibre-gl/maplibre-gl-worker.mjs");
+
+// Below this zoom, pin name labels are hidden — at KL-wide zoom levels
+// there are too many pins for every label to fit without colliding.
+const LABEL_MIN_ZOOM = 13;
 
 export type LatLng = { lat: number; lng: number };
 
@@ -40,19 +44,11 @@ export type MapProps = {
 
 type MarkerEntry = { marker: Marker; root: Root; el: HTMLDivElement };
 
-function MarkerContent({ item, selected }: { item: NearbyItem; selected: boolean }) {
-  // design.md §2: lime (map-lime) = open-now/live — a subtle pulse ring,
-  // not a heavy badge. Mango selected glow / chili heat come from Pin.
-  const live = item.heat === "low";
+function MarkerContent({ item, selected, showLabel }: { item: NearbyItem; selected: boolean; showLabel: boolean }) {
+  // design.md §2: mango selected glow / chili heat come from Pin.
   return (
     <div className="relative flex flex-col items-center">
-      {live && (
-        <span
-          aria-hidden
-          className="absolute left-1/2 top-0 h-5 w-5 -translate-x-1/2 animate-ping rounded-full bg-map-lime/50"
-        />
-      )}
-      <Pin heat={item.heat} selected={selected} label={item.name} />
+      <Pin heat={item.heat} selected={selected} label={showLabel ? item.name : undefined} />
     </div>
   );
 }
@@ -64,14 +60,21 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
   // `Map`, which would shadow the global `Map` constructor in this module.
   const markersRef = useRef<Record<string, MarkerEntry>>({});
   const readyRef = useRef(false);
+  const showLabelsRef = useRef(zoom >= LABEL_MIN_ZOOM);
+  const [mapState, setMapState] = useState<"loading" | "ready" | "error">("loading");
+
+  // Re-render markers (for the zoom-gated label) without needing this in
+  // the items/selectedId sync effect's own dependency array.
+  const rerenderMarkers = useRef<() => void>(() => {});
 
   // Init map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const initialTheme = resolveEffectiveTheme();
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: getMapStyle(),
+      style: getMapStyle(initialTheme),
       center: [center.lng, center.lat],
       zoom,
       attributionControl: false,
@@ -79,12 +82,23 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
     map.on("load", () => {
       readyRef.current = true;
+      setMapState("ready");
       // MapLibre can measure a zero-size container if it initializes before
       // layout settles (e.g. inside a full-bleed absolute-inset parent whose
       // size isn't final on first paint), which leaves the map blank until
       // the user interacts. Force a resize once the map has loaded so it
       // always paints tiles immediately.
       map.resize();
+    });
+    map.on("error", () => {
+      setMapState((prev) => (prev === "loading" ? "error" : prev));
+    });
+    map.on("zoom", () => {
+      const nextShowLabels = map.getZoom() >= LABEL_MIN_ZOOM;
+      if (nextShowLabels !== showLabelsRef.current) {
+        showLabelsRef.current = nextShowLabels;
+        rerenderMarkers.current();
+      }
     });
     mapRef.current = map;
 
@@ -96,7 +110,16 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
     });
     resizeObserver.observe(containerRef.current);
 
+    // Basemap follows the effective theme (data-theme, else OS preference)
+    // live: re-select the style whenever either input changes. setStyle
+    // swaps only the tile/style layers — the Marker DOM overlays below are
+    // independent of map style and survive untouched.
+    const unsubscribeTheme = subscribeToThemeChange((theme) => {
+      mapRef.current?.setStyle(getMapStyle(theme));
+    });
+
     return () => {
+      unsubscribeTheme();
       resizeObserver.disconnect();
       Object.values(markersRef.current).forEach(({ marker, root }) => {
         root.unmount();
@@ -128,46 +151,75 @@ export function Map({ items, center, recenterNonce = 0, selectedId, onSelect, zo
     const map = mapRef.current;
     if (!map) return;
 
-    const nextIds = new Set(items.map((i) => i.id));
+    const render = () => {
+      const nextIds = new Set(items.map((i) => i.id));
 
-    // Remove stale markers.
-    for (const [id, entry] of Object.entries(markersRef.current)) {
-      if (!nextIds.has(id)) {
-        entry.root.unmount();
-        entry.marker.remove();
-        delete markersRef.current[id];
-      }
-    }
-
-    // Add/update markers.
-    for (const item of items) {
-      const selected = item.id === selectedId;
-      const existing = markersRef.current[item.id];
-      if (existing) {
-        existing.marker.setLngLat([item.lng, item.lat]);
-        existing.root.render(<MarkerContent item={item} selected={selected} />);
-        continue;
+      // Remove stale markers.
+      for (const [id, entry] of Object.entries(markersRef.current)) {
+        if (!nextIds.has(id)) {
+          entry.root.unmount();
+          entry.marker.remove();
+          delete markersRef.current[id];
+        }
       }
 
-      const el = document.createElement("div");
-      el.style.cursor = "pointer";
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        onSelect(item.id);
-      });
+      // Add/update markers.
+      for (const item of items) {
+        const selected = item.id === selectedId;
+        const showLabel = showLabelsRef.current;
+        const existing = markersRef.current[item.id];
+        if (existing) {
+          existing.marker.setLngLat([item.lng, item.lat]);
+          existing.root.render(<MarkerContent item={item} selected={selected} showLabel={showLabel} />);
+          continue;
+        }
 
-      const root = createRoot(el);
-      root.render(<MarkerContent item={item} selected={selected} />);
+        const el = document.createElement("div");
+        el.style.cursor = "pointer";
+        el.setAttribute("role", "button");
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", `${item.name}, ${item.heat} heat`);
+        const select = () => onSelect(item.id);
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          select();
+        });
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            select();
+          }
+        });
 
-      const marker = new Marker({ element: el, anchor: "top" })
-        .setLngLat([item.lng, item.lat])
-        .addTo(map);
+        const root = createRoot(el);
+        root.render(<MarkerContent item={item} selected={selected} showLabel={showLabel} />);
 
-      markersRef.current[item.id] = { marker, root, el };
-    }
+        const marker = new Marker({ element: el, anchor: "top" })
+          .setLngLat([item.lng, item.lat])
+          .addTo(map);
+
+        markersRef.current[item.id] = { marker, root, el };
+      }
+    };
+
+    rerenderMarkers.current = render;
+    render();
   }, [items, selectedId, onSelect]);
 
-  return <div ref={containerRef} className={`h-full w-full bg-sheet-surface-low ${className}`} />;
+  return (
+    <div ref={containerRef} className={`relative h-full w-full bg-map-background ${className}`}>
+      {mapState !== "ready" && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-map-background">
+          {mapState === "loading" ? (
+            <p className="animate-pulse font-body-md text-body-md text-map-on-surface/60">Loading map…</p>
+          ) : (
+            <p className="font-body-md text-body-md text-map-on-surface/60">Couldn&apos;t load the map.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default Map;

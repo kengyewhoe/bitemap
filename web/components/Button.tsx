@@ -32,7 +32,7 @@ function isLink(props: ButtonProps): props is ButtonAsLink {
 // scale (lg: 1rem is the card/sheet corner token; 1rem === 16px at the
 // default root font size, matching design.md's "button: 16px").
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 font-title-md text-title-md transition-opacity disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3.5 font-title-md text-title-md transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50";
 
 const variants: Record<ButtonVariant, string> = {
   primary: "bg-primary-container text-on-primary shadow-sm active:opacity-90",
@@ -63,7 +63,7 @@ export function Button(props: ButtonProps) {
       );
     }
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} aria-busy={loading || undefined}>
         {loading && <Spinner />}
         {children}
       </Link>
@@ -72,7 +72,12 @@ export function Button(props: ButtonProps) {
 
   const { variant: _v, loading: _l, children: _c, className: _cn, ...rest } = props;
   return (
-    <button {...rest} className={classes} disabled={rest.disabled || loading}>
+    <button
+      {...rest}
+      className={classes}
+      disabled={rest.disabled || loading}
+      aria-busy={loading || undefined}
+    >
       {loading && <Spinner />}
       {children}
     </button>
