@@ -4,7 +4,7 @@ import { Nav } from "@/components/Nav";
 import { Button } from "@/components/Button";
 import { VotePanel } from "@/components/VotePanel";
 import { SaveToggle } from "@/components/SaveToggle";
-import { Embed } from "@/components/Embed";
+import { AsSeenOnList } from "@/components/AsSeenOnList";
 import { ImgWithFallback } from "@/components/ImgWithFallback";
 import { anonClient } from "@/app/api/_supabase";
 import { detailDto, withAt, type PlaceCardRow } from "@/lib/reshape";
@@ -339,11 +339,7 @@ export default async function PlacePage({
             </Link>
           </div>
         ) : (
-          <div>
-            {posts.map((post) => (
-              <Embed key={post.id} post={post} />
-            ))}
-          </div>
+          <AsSeenOnList posts={posts} placeName={place.name} directionsUrl={directionsUrl(place)} />
         )}
       </div>
 

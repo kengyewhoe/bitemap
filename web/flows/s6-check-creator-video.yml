@@ -1,0 +1,31 @@
+# S6 check-creator-video — diner on a phone wants proof before committing to a place.
+flow: check-creator-video
+scenario: S6 check-creator-video — logged-out diner on a phone, found a nearby place, wants to watch the creator's video before going, without leaving BiteMap
+trigger: "is this place actually good? show me who ate here"
+viewport: mobile
+signed_in: false
+geolocation: true
+known_at_start: []
+user_must_supply: []
+floor: 2
+# Floor 2: play the video, then commit to going. +2 justified: opening the
+# nearby list (read) and the place (nav) are the path from map to place page.
+# Directions lives inside the player sheet so watching and going need no
+# extra close/scroll. Worst case: embed fails to load (blocked, deleted video)
+# and the sheet must still offer "Open in TikTok" and Directions.
+budget: 4
+time_budget_ms: 6000
+actions:
+  - step: open the nearby list
+    kind: read
+    selector: '[data-testid="nearby-picks-btn"]'
+  - step: open the first nearby place
+    kind: nav
+    selector: '[data-testid="sheet-item"]:first-of-type'
+  - step: play the creator's video in-app
+    kind: read
+    selector: '[data-testid="post-card-link"]:first-of-type'
+  - step: get directions from the player
+    kind: commit
+    selector: '[data-testid="player-directions"]'
+unrecoverable: []

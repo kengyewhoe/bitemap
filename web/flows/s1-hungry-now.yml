@@ -1,0 +1,29 @@
+# S1 hungry-now — first-time visitor, phone, street, hungry, 30s budget, logged out.
+# Extra top-level keys beyond SKILL.md's minimal example (viewport, signed_in,
+# geolocation) are read by scripts/replay-flows.mjs to set up the browser
+# context; they don't change the click-budget/time-budget contract.
+flow: hungry-now
+scenario: S1 hungry-now — first-time visitor on a phone, standing on a KL street, hungry, one hand, 30s budget, logged out
+trigger: opens BiteMap for the first time, wants a trusted place nearby right now
+viewport: mobile
+signed_in: false
+geolocation: true
+known_at_start: []
+user_must_supply: []
+floor: 1
+# +2 justified: revealing the candidate list (read) and picking one place out
+# of it (nav) are irreducible for a map app — Directions needs a chosen place,
+# and you cannot choose from a list you have not opened.
+budget: 3
+time_budget_ms: 4000
+actions:
+  - step: open Nearby picks to see candidates
+    kind: read
+    selector: '[data-testid="nearby-picks-btn"]'
+  - step: pick a nearby place from the list
+    kind: nav
+    selector: '[data-testid="sheet-item"]:first-of-type'
+  - step: start directions to the chosen place
+    kind: commit
+    selector: '[data-testid="directions-link"]'
+unrecoverable: []

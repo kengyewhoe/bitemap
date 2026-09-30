@@ -1,0 +1,38 @@
+# S3 saw-it-on-IG — guest leg. Logged-out visitor heard of "Gentle Mess" from
+# a reel, finds it by name, and tries to save it. Sign-in (Google OAuth)
+# cannot be automated, so this leg is charted only up to the /login redirect
+# and the tap that hands off to Google. The post-auth completion is the
+# separate s3-find-and-save-postauth.yml flow, replayed against the
+# authenticated storageState — see .scratch/persona-findings.md #F2 for
+# whether the save intent survives the round trip (it does not, today).
+flow: find-and-save-guest
+scenario: S3 saw-it-on-IG — logged out, phone, heard of "Gentle Mess" from a reel
+trigger: wants to find "Gentle Mess" by name and save it for later
+viewport: mobile
+signed_in: false
+geolocation: false
+known_at_start:
+  - the place's name, "Gentle Mess"
+user_must_supply:
+  - the place name (search query)
+floor: 2
+# +2 justified: picking the right result out of the search matches (nav) and
+# the mandatory OAuth hand-off tap (nav) are irreducible — a persisted save
+# cannot happen without signing in, and BiteMap only offers Google sign-in.
+budget: 4
+time_budget_ms: 4000
+actions:
+  - step: search for "Gentle Mess"
+    kind: supply
+    value: Gentle Mess
+    selector: '[data-testid="search-input"]'
+  - step: open the matching result
+    kind: nav
+    selector: '[data-testid="sheet-item"][data-place-name="Gentle Mess"]'
+  - step: tap Save (not signed in)
+    kind: commit
+    selector: '[data-testid="save-toggle"]'
+  - step: continue with Google (hands off to OAuth; flow ends here)
+    kind: nav
+    selector: '[data-testid="google-signin-btn"]'
+unrecoverable: []
