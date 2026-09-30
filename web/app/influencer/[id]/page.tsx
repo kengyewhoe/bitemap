@@ -9,8 +9,7 @@ import { Nav } from "@/components/Nav";
 import { Button } from "@/components/Button";
 import { FollowButton } from "@/components/FollowButton";
 import { Avatar } from "@/components/Avatar";
-import { ImgWithFallback } from "@/components/ImgWithFallback";
-import { SourceGlyph } from "@/components/Embed";
+import { CreatorPicksList } from "@/components/CreatorPicksList";
 import { withAt } from "@/lib/reshape";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,12 +31,6 @@ interface PostRow {
   posted_at: string;
   places: { id: string; name: string; area: string | null } | null;
 }
-
-const PLATFORM_LABELS: Record<string, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  youtube: "YouTube",
-};
 
 const QUERY_TIMEOUT_MS = 3000;
 
@@ -265,78 +258,7 @@ export default async function InfluencerPage({
             No mapped spots yet.
           </p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {picks.map((pick) => {
-              if (pick.kind === "place") {
-                return (
-                  <Link key={pick.placeId} href={`/place/${pick.placeId}`} data-testid="creator-pick-link">
-                    <div className="flex gap-4 rounded-lg border border-sheet-outline bg-sheet-surface p-3">
-                      <ImgWithFallback
-                        src={pick.thumbnailUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                        fallback={
-                          <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-primary-container/10 text-primary">
-                            <SourceGlyph className="h-5 w-5" />
-                          </div>
-                        }
-                      />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-title-md text-[16px] text-sheet-on-surface">
-                          {pick.name}
-                        </h3>
-                        {/* R5: a long area name used to wrap, stranding the
-                            post count alone on its own line — truncate the
-                            area and keep the count fixed-width instead. */}
-                        <p className="mt-1 flex items-center gap-1 font-label-caps text-[11px] uppercase text-sheet-on-surface-muted">
-                          {pick.area && <span className="min-w-0 truncate">{pick.area} ·</span>}
-                          <span className="shrink-0">
-                            {pick.count > 1 ? `${pick.count} posts` : "1 post"}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              }
-
-              const post = pick.post;
-              const platformLabel = PLATFORM_LABELS[post.platform] ?? post.platform;
-              return (
-                <a
-                  key={post.id}
-                  href={post.post_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex gap-4 rounded-lg border border-sheet-outline bg-sheet-surface p-3"
-                >
-                  <ImgWithFallback
-                    src={post.thumbnail_url}
-                    alt=""
-                    loading="lazy"
-                    className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                    fallback={
-                      <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-primary-container/10 text-primary">
-                        <SourceGlyph className="h-5 w-5" />
-                      </div>
-                    }
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-title-md text-[16px] text-sheet-on-surface">
-                      {platformLabel}
-                    </h3>
-                    {/* C10: no matched place means the tap leaves the app
-                        for Instagram — say so instead of a bare label. */}
-                    <p className="mt-1 flex items-center gap-1 font-label-caps text-[11px] uppercase text-sheet-on-surface-muted">
-                      <SourceGlyph className="h-3 w-3" />
-                      Opens {platformLabel}
-                    </p>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
+          <CreatorPicksList picks={picks} creatorHandle={handle} />
         )}
       </div>
 

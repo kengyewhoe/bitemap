@@ -25,6 +25,12 @@ export async function middleware(request: NextRequest) {
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.maptiler.com https://tiles.openfreemap.org",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
+    // In-app video playback (place/creator "post card" -> player sheet):
+    // TikTok's official /player/v1/ embed and Instagram's /embed/ endpoint
+    // are both frameable (verified: 200, no X-Frame-Options / frame-ancestors
+    // restriction on either). frame-src takes precedence over child-src for
+    // <iframe>, so this doesn't loosen anything child-src already covers.
+    "frame-src https://www.tiktok.com https://www.instagram.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
