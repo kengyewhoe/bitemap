@@ -1,0 +1,44 @@
+# S2 halal-only — first-time Muslim visitor, phone, logged out. Cost of error
+# is high (eats somewhere non-halal), so confirming halal status before
+# Directions is part of the goal, not optional polish.
+#
+# NOTE (see .scratch/persona-findings.md #F1, Round 3): in the current DEV
+# dataset every nearby place has halal_status "unknown" or "non_halal" — none
+# are jakim_certified/muslim_owned/pork_free — so step 2 below still renders
+# zero results and this flow still cannot reach Directions today. What
+# changed is the dead end itself: the empty state now shows honest copy
+# ("No halal-confirmed places nearby yet") plus a "Show all places" recovery
+# button (F1 fix) instead of the generic "no results" copy with no obvious
+# way forward. This map charts that recovery path, not full completion —
+# full completion (pick a halal-confirmed place, confirm status, start
+# Directions) needs halal-confirmed data backfilled into the dataset, which
+# is a data/ingestion gap, not something this UI fix can close.
+flow: halal-only
+scenario: S2 halal-only — Muslim first-time visitor, logged out, phone, high cost of error
+trigger: opens BiteMap wanting only halal-confirmed places nearby
+viewport: mobile
+signed_in: false
+geolocation: true
+known_at_start: []
+user_must_supply:
+  - halal dietary requirement (toggle the filter)
+floor: 1
+# +2 justified: revealing the filtered (empty) candidate list (read, so the
+# zero-results state is honestly confirmed rather than assumed) and
+# recovering to unfiltered browsing via "Show all places" (nav — it only
+# moves state, carries no new information) are irreducible today given no
+# halal-confirmed data exists. This flow intentionally stops at the
+# recovery step; it does not reach Directions.
+budget: 3
+time_budget_ms: 4000
+actions:
+  - step: turn on halal-friendly filter
+    kind: supply
+    selector: '[data-testid="halal-toggle"]'
+  - step: open Nearby picks to see filtered candidates (renders the F1 empty state)
+    kind: read
+    selector: '[data-testid="nearby-picks-btn"]'
+  - step: recover via "Show all places" instead of dead-ending
+    kind: nav
+    selector: '[data-testid="show-all-places-btn"]'
+unrecoverable: []

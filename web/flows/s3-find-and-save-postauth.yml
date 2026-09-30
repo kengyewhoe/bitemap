@@ -1,0 +1,29 @@
+# S3 saw-it-on-IG — post-auth leg. Simulates "after sign-in" by loading the
+# authenticated storageState and landing directly on the `next` URL that
+# /login?next=%2Fplace%2Fgentle-mess%3Fintent%3Dsave should have carried
+# through the OAuth round trip (the same URL the guest leg's redirect
+# produces — verified by scripts/replay-flows.mjs before running this leg's
+# actions).
+#
+# Floor is 0: SaveToggle now carries `intent=save` through the redirect and
+# auto-performs the save on mount when signed in with a matching intent
+# (persona-findings.md F2, fixed) — the guest leg's tap is no longer lost,
+# so there is nothing left to tap on arrival. Combined with the guest leg's
+# 4 taps, the full S3 flow costs 4 total against its own budget, meeting the
+# ideal (the guest leg already carried the one unavoidable OAuth hand-off).
+flow: find-and-save-postauth
+scenario: S3 saw-it-on-IG — post-auth leg, returning from Google sign-in to /place/gentle-mess
+trigger: lands back on BiteMap after completing Google sign-in
+viewport: mobile
+signed_in: true
+geolocation: false
+start_url: /place/gentle-mess?intent=save
+known_at_start:
+  - already landed on the correct place (next param honored)
+  - the guest leg's Save tap, carried through via intent=save
+user_must_supply: []
+floor: 0
+budget: 0
+time_budget_ms: 2000
+actions:
+unrecoverable: []

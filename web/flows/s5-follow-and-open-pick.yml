@@ -1,0 +1,32 @@
+# S5 follow-a-creator — signed-in user, desktop 1280px.
+flow: follow-and-open-pick
+scenario: S5 follow-a-creator — signed-in user on desktop (1280px), likes a creator's taste
+trigger: wants to find a specific creator, follow them, and open one of their picks
+viewport: desktop
+signed_in: true
+geolocation: false
+known_at_start:
+  - the creator's name
+user_must_supply: []
+floor: 1
+# +3 justified: opening the directory (nav) and opening the specific
+# creator's own profile (nav) are irreducible — the goal names "find the
+# creator" and "open one of their picks" as explicit steps, not just
+# following blind from a directory row; opening a pick (nav) is the stated
+# final step.
+budget: 4
+time_budget_ms: 4000
+actions:
+  - step: open the Influencers directory
+    kind: nav
+    selector: '[data-testid="nav-influencers"]'
+  - step: open the creator's profile
+    kind: nav
+    selector: '[data-testid="creator-card-link"][data-creator-name="Jason Chen"]'
+  - step: follow the creator
+    kind: commit
+    selector: '[data-testid="follow-toggle"]'
+  - step: open one of their curated picks
+    kind: nav
+    selector: '[data-testid="creator-pick-link"]:first-of-type'
+unrecoverable: []

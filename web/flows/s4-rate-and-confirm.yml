@@ -1,0 +1,44 @@
+# S4 just-ate — signed-in returning user, phone. Vote is FINAL: no update or
+# delete path exists once cast (VotePanel/user_ratings). Round 3 (F3 fix):
+# the first Good/Bad tap now only SELECTS a choice; a second, explicit
+# Confirm tap is the actual commit that writes the vote. The select tap
+# supplies which option the user means (supply); the confirm tap is what
+# authorizes the irreversible write (commit) — see .scratch/persona-
+# findings.md #F3.
+flow: rate-and-confirm
+scenario: S4 just-ate — signed-in returning user, phone, just finished eating
+trigger: just ate at a place found on BiteMap, wants to rate it Good
+viewport: mobile
+signed_in: true
+geolocation: true
+known_at_start:
+  - which place they just ate at
+user_must_supply:
+  - which rating (Good or Bad)
+floor: 2
+# +3 justified: revealing candidates (read) and picking the just-eaten place
+# (nav) are irreducible to reach the rating control; confirming the vote
+# landed via the profile's rating count (read) is part of the stated goal,
+# not optional — the scenario explicitly asks to verify it, not just cast
+# it. The select-then-confirm split itself adds no waste above floor: both
+# are counted directly in floor (supply + commit).
+budget: 5
+time_budget_ms: 5000
+actions:
+  - step: open Nearby picks to find the place
+    kind: read
+    selector: '[data-testid="nearby-picks-btn"]'
+  - step: pick the place just eaten at
+    kind: nav
+    selector: '[data-testid="sheet-item"]:first-of-type'
+  - step: select Good
+    kind: supply
+    selector: '[data-testid="vote-good"]'
+  - step: confirm the Good vote
+    kind: commit
+    selector: '[data-testid="vote-confirm"]'
+  - step: open profile to confirm the rating count went up
+    kind: read
+    selector: '[data-testid="nav-me"]'
+unrecoverable:
+  - confirm the Good vote
